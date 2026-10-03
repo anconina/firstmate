@@ -630,15 +630,17 @@ fm_dod_named_head_reachable_outside_worktree() {  # <worktree> <project> <mode> 
 
 # GitHub merge-time publication check; bin/fm-pr-merge.sh's header owns its
 # contract. Returns 0 for verified containment, nonzero otherwise.
-fm_dod_pr_branch_pushed() {  # <worktree> <branch> <forge-head>
-  local wt=$1 branch=$2 forge_head=$3 tip
+fm_dod_pr_branch_pushed() {  # <worktree> <branch> <forge-head> <pr-number>
+  local wt=$1 branch=$2 forge_head=$3 number=$4 tip
   [ -n "$wt" ] && [ -d "$wt" ] || return 1
   fm_pr_head_valid "$forge_head" || return 1
   git check-ref-format --branch "$branch" >/dev/null 2>&1 || return 1
   tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null) || return 1
   [ "$tip" = "$forge_head" ] && return 0
   if ! git -C "$wt" cat-file -e "$forge_head^{commit}" 2>/dev/null; then
-    git -C "$wt" fetch --quiet --no-tags -- origin "$forge_head" >/dev/null 2>&1 || return 1
+    git -C "$wt" fetch --quiet --no-tags -- origin "$forge_head" >/dev/null 2>&1 \
+      || git -C "$wt" fetch --quiet --no-tags --refmap= -- origin "refs/pull/$number/head" >/dev/null 2>&1 \
+      || return 1
   fi
   git -C "$wt" merge-base --is-ancestor "$tip" "$forge_head" 2>/dev/null
 }
