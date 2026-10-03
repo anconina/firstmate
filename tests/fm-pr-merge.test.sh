@@ -196,6 +196,10 @@ case "${1:-} ${2:-}" in
         fi
         exit 0
         ;;
+      *headRefName*)
+        printf '%s\n' 'fm/task-x1'
+        exit 0
+        ;;
       *headRefOid*)
         cat "$FM_TEST_GH_HEAD"
         exit 0

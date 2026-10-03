@@ -150,14 +150,21 @@ esac
 # forge's head green and binds the merge to it, so the merge passes the gate
 # when the pull request's own branch in the copy holds nothing the forge lacks;
 # an unpushed commit on that branch is still refused.
-merge_pr_branch_pushed() {
-  local branch
-  [ "${FM_PR_CHECK_MERGE:-}" = 1 ] && [ -n "$PR_HEAD" ] || return 1
-  branch=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) || return 1
-  fm_dod_pr_branch_pushed "$WT" "$PROJECT" "$MODE" "$branch" "$PR_HEAD"
-}
-if { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
-  && ! merge_pr_branch_pushed \
+PR_BRANCH=
+if [ "${FM_PR_CHECK_MERGE:-}" = 1 ] && [ "$PROVIDER" = github ]; then
+  if ! PR_BRANCH=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) \
+    || ! git check-ref-format --branch "$PR_BRANCH" >/dev/null 2>&1; then
+    echo "error: pull request head branch could not be verified" >&2
+    exit 1
+  fi
+fi
+if [ -n "$PR_BRANCH" ] \
+  && PR_BRANCH_TIP=$(git -C "$WT" rev-parse --verify --quiet "refs/heads/$PR_BRANCH^{commit}" 2>/dev/null); then
+  if ! fm_dod_pr_branch_pushed "$WT" "$PROJECT" "$MODE" "$PR_BRANCH" "$PR_HEAD"; then
+    echo "error: named head $PR_BRANCH_TIP is unreachable outside the worker copy" >&2
+    exit 1
+  fi
+elif { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
   && ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "$DONE_LINE" "$STATE" "$ID" "$META"); then
   echo "error: $GATE_REASON" >&2
   exit 1
