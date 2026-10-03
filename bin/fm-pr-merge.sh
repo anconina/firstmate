@@ -152,6 +152,8 @@ STATE="${FM_STATE_OVERRIDE:-$FM_HOME/state}"
 
 # shellcheck source=bin/fm-pr-lib.sh
 . "$SCRIPT_DIR/fm-pr-lib.sh"
+# shellcheck source=bin/fm-dod-lib.sh
+. "$SCRIPT_DIR/fm-dod-lib.sh"
 # shellcheck source=bin/fm-backlog-transition-lib.sh
 . "$SCRIPT_DIR/fm-backlog-transition-lib.sh"
 # shellcheck source=bin/fm-merge-outcome-lib.sh
@@ -1384,6 +1386,28 @@ case "$PROVIDER" in
     require_current_away_authority || away_status=$?
     [ "$away_status" -eq 0 ] || exit "$away_status"
     refuse_github_queue_while_away || exit 2
+    WT=$(fm_dod_meta_value "$META" worktree)
+    if ! PR_BRANCH=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) \
+      || ! git check-ref-format --branch "$PR_BRANCH" >/dev/null 2>&1; then
+      echo "error: pull request head branch could not be verified" >&2
+      exit 1
+    fi
+    if PR_BRANCH_TIP=$(git -C "$WT" rev-parse --verify --quiet "refs/heads/$PR_BRANCH^{commit}" 2>/dev/null); then
+      if ! fm_dod_pr_branch_pushed "$WT" "$PR_BRANCH" "$FM_PR_MERGE_HEAD"; then
+        echo "error: named head $PR_BRANCH_TIP could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
+        exit 1
+      fi
+    else
+      MODE=$(fm_dod_meta_value "$META" mode)
+      if ! fm_dod_forge_head_is_named_head "$MODE"; then
+        KIND=$(fm_dod_meta_value "$META" kind)
+        PROJECT=$(fm_dod_meta_value "$META" project)
+        if ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "done: PR $URL" "$STATE" "$ID" "$META"); then
+          echo "error: $GATE_REASON" >&2
+          exit 1
+        fi
+      fi
+    fi
     merge_status=0
     merge_output=$(gh pr merge "$PR_NUMBER" --repo "$PR_OWNER/$PR_REPO" \
       --match-head-commit "$FM_PR_MERGE_HEAD" \

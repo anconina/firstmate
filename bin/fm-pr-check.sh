@@ -3,10 +3,8 @@
 # exact pr_head=<sha> when available, then atomically arm a static merge poll.
 # Refuses when bin/fm-dod-lib.sh will not accept the named head as reachable
 # outside the worker's disposable copy; in no-mistakes mode a forge-reported
-# head is that named head and is already stored on the forge. When
-# bin/fm-pr-merge.sh records through this script, a GitHub pull request whose
-# own head branch in the copy matches what the forge holds passes even after
-# HEAD moved on to a later unpushed branch.
+# head is that named head and is already stored on the forge. GitHub merge-time
+# named-head checks belong to bin/fm-pr-merge.sh.
 # The watcher check source is byte-for-byte bin/fm-pr-poll.sh; task and PR data
 # live only in a private sidecar and are never interpolated into shell source.
 # A GitHub pull request URL, a GitLab merge request URL, and a Gerrit change URL
@@ -145,26 +143,8 @@ case "$PROVIDER:$MODE" in
   *:no-mistakes|*:) DONE_LINE="done: PR $URL checks green" ;;
   *) DONE_LINE="done: PR $URL" ;;
 esac
-# A merge names one pull request, and a copy that stacks several moves HEAD on
-# to a later local branch once that one is pushed. bin/fm-pr-merge.sh checks the
-# forge's head green and binds the merge to it, so the merge passes the gate
-# when the pull request's own branch in the copy holds nothing the forge lacks;
-# an unpushed commit on that branch is still refused.
-PR_BRANCH=
-if [ "${FM_PR_CHECK_MERGE:-}" = 1 ] && [ "$PROVIDER" = github ]; then
-  if ! PR_BRANCH=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) \
-    || ! git check-ref-format --branch "$PR_BRANCH" >/dev/null 2>&1; then
-    echo "error: pull request head branch could not be verified" >&2
-    exit 1
-  fi
-fi
-if [ -n "$PR_BRANCH" ] \
-  && PR_BRANCH_TIP=$(git -C "$WT" rev-parse --verify --quiet "refs/heads/$PR_BRANCH^{commit}" 2>/dev/null); then
-  if ! fm_dod_pr_branch_pushed "$WT" "$PR_BRANCH" "$PR_HEAD"; then
-    echo "error: named head $PR_BRANCH_TIP could not be verified in pull request head $PR_HEAD" >&2
-    exit 1
-  fi
-elif { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
+if { [ "${FM_PR_CHECK_MERGE:-}" != 1 ] || [ "$PROVIDER" != github ]; } \
+  && { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
   && ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "$DONE_LINE" "$STATE" "$ID" "$META"); then
   echo "error: $GATE_REASON" >&2
   exit 1

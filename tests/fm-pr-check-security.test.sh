@@ -151,7 +151,14 @@ case "${1:-} ${2:-}" in
   "pr view")
     case " $* " in
       *statusCheckRollup*)
-        printf '%s\n' "{\"state\":\"OPEN\",\"isDraft\":false,\"mergeable\":\"MERGEABLE\",\"mergeStateStatus\":\"CLEAN\",\"headRefOid\":\"${FM_TEST_GH_HEAD:-0123456789abcdef0123456789abcdef01234567}\",\"baseRefName\":\"main\",\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"ci\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]}"
+        head=${FM_TEST_GH_MERGE_HEAD:-${FM_TEST_GH_HEAD:-0123456789abcdef0123456789abcdef01234567}}
+        mergeable=MERGEABLE
+        if [ -n "${FM_TEST_GH_UNKNOWN_ONCE:-}" ] && [ ! -e "$FM_TEST_GH_UNKNOWN_ONCE" ]; then
+          : > "$FM_TEST_GH_UNKNOWN_ONCE"
+          mergeable=UNKNOWN
+          head=${FM_TEST_GH_HEAD:-0123456789abcdef0123456789abcdef01234567}
+        fi
+        printf '%s\n' "{\"state\":\"OPEN\",\"isDraft\":false,\"mergeable\":\"$mergeable\",\"mergeStateStatus\":\"CLEAN\",\"headRefOid\":\"$head\",\"baseRefName\":\"main\",\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"ci\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]}"
         exit 0
         ;;
       *" --json isDraft "*)
@@ -821,6 +828,42 @@ test_merge_of_pipeline_head_fetches_missing_ancestry() {
   pass "fm-pr-merge fetches a pipeline head and accepts its local ancestor despite stale remote-tracking refs"
 }
 
+test_merge_checks_branch_against_final_verified_head() {
+  local dir mode retries part1 older unknown_once
+  for mode in direct-PR no-mistakes; do
+    for retries in 0 1; do
+      dir=$(make_case "stacked-merge-verified-head-$mode-$retries")
+      make_stacked_copy "$dir" "$mode"
+      part1=$(git -C "$dir/wt" rev-parse HEAD)
+      older=$(git -C "$dir/wt" rev-parse HEAD^)
+      git -C "$dir/wt" checkout -q -b part-2
+      git -C "$dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
+      unknown_once=
+      [ "$retries" -eq 0 ] || unknown_once="$dir/unknown-once"
+
+      FM_TEST_GH_HEAD=$part1 FM_TEST_GH_MERGE_HEAD=$older FM_TEST_GH_HEAD_REF=part-1 \
+        FM_TEST_GH_UNKNOWN_ONCE=$unknown_once FM_PR_GITHUB_MERGEABLE_RETRY_DELAY=0 \
+        run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+        > "$dir/stdout" 2> "$dir/stderr" && fail "$mode merged an older head missing the local PR branch tip"
+      grep -qxF "pr_head=$part1" "$dir/home/state/task-a.meta" \
+        || fail "$mode registration did not record the newer head"
+      [ "$(grep -c '^pr view .*statusCheckRollup' "$dir/gh.log")" -eq "$((retries + 1))" ] \
+        || fail "$mode did not complete the expected mergeability reads"
+      grep -Fq "named head $part1 could not be verified in pull request head $older" "$dir/stderr" \
+        || fail "$mode refusal did not use the final verified head: $(cat "$dir/stderr")"
+      ! grep -q '^pr merge' "$dir/gh.log" || fail "$mode attempted to merge the older head"
+
+      : > "$dir/gh.log"
+      FM_TEST_GH_HEAD=$older FM_TEST_GH_MERGE_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 \
+        run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+        > "$dir/stdout" 2> "$dir/stderr" || fail "$mode used the older registration head to refuse a safe merge: $(cat "$dir/stderr")"
+      grep -qxF "pr merge 4 --repo o/r --match-head-commit $part1 --squash" "$dir/gh.log" \
+        || fail "$mode did not merge the final verified head containing the local PR branch tip"
+    done
+  done
+  pass "fm-pr-merge checks containment against its final verified head, including after retries"
+}
+
 test_merge_refuses_unpushed_commit_on_stacked_pr_branch() {
   local dir part1 later
   dir=$(make_case stacked-merge-unpushed)
@@ -877,7 +920,7 @@ test_merge_refuses_unpushed_pr_branch_with_pushed_head() {
     grep -Fq "named head $fix could not be verified in pull request head $part1" "$dir/stderr" \
       || fail "$mode refusal did not name part-1's unpushed fix: $(cat "$dir/stderr")"
     ! grep -q '^pr merge' "$dir/gh.log" || fail "$mode refused PR still reached the forge merge"
-    [ ! -e "$dir/home/state/task-a.check.sh" ] || fail "$mode refused PR still armed a poll"
+    [ ! -e "$dir/home/state/task-a.pr-poll-merge-notified" ] || fail "$mode refused PR was recorded as merged"
 
     git -C "$dir/wt" push -q origin part-1:other-fixes || fail "could not push the fix to another branch"
     FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
@@ -3660,6 +3703,7 @@ test_unpushed_named_head_refuses_registration
 test_direct_pr_unpushed_commit_refuses_registration
 test_merge_of_pushed_stacked_pr_ignores_later_branch
 test_merge_of_pipeline_head_fetches_missing_ancestry
+test_merge_checks_branch_against_final_verified_head
 test_merge_refuses_unpushed_commit_on_stacked_pr_branch
 test_merge_refuses_unpushed_pr_branch_with_pushed_head
 test_merge_uses_head_gate_when_pr_branch_is_absent
