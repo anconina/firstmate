@@ -629,19 +629,22 @@ fm_dod_named_head_reachable_outside_worktree() {  # <worktree> <project> <mode> 
 }
 
 # 0 when the copy's local <branch> - the head branch the forge reports for one
-# pull request - holds nothing the forge lacks: its tip is <forge-head> or is
-# reachable outside the worker copy. A copy that stacks several pull requests
+# pull request - holds nothing its forge head lacks: its tip is <forge-head> or
+# an ancestor of it. A copy that stacks several pull requests
 # moves HEAD on to a later local branch, so for a merge of one of them that
 # pull request's own branch, not HEAD, carries its named head. 1 when the
-# branch is absent from the copy or carries a commit that was never pushed.
-fm_dod_pr_branch_pushed() {  # <worktree> <project> <mode> <branch> <forge-head>
-  local wt=$1 project=$2 mode=$3 branch=$4 forge_head=$5 tip
+# branch is absent or its tip cannot be verified in the forge head's ancestry.
+fm_dod_pr_branch_pushed() {  # <worktree> <branch> <forge-head>
+  local wt=$1 branch=$2 forge_head=$3 tip
   [ -n "$wt" ] && [ -d "$wt" ] || return 1
   fm_pr_head_valid "$forge_head" || return 1
   git check-ref-format --branch "$branch" >/dev/null 2>&1 || return 1
   tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null) || return 1
   [ "$tip" = "$forge_head" ] && return 0
-  fm_dod_named_head_reachable_outside_worktree "$wt" "$project" "$mode" "$tip"
+  if ! git -C "$wt" cat-file -e "$forge_head^{commit}" 2>/dev/null; then
+    git -C "$wt" fetch --quiet --no-tags -- origin "$forge_head" >/dev/null 2>&1 || return 1
+  fi
+  git -C "$wt" merge-base --is-ancestor "$tip" "$forge_head" 2>/dev/null
 }
 
 # 0 when <line> is not a ship done: to gate, when it names the task's recorded

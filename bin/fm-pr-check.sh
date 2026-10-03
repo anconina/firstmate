@@ -160,8 +160,8 @@ if [ "${FM_PR_CHECK_MERGE:-}" = 1 ] && [ "$PROVIDER" = github ]; then
 fi
 if [ -n "$PR_BRANCH" ] \
   && PR_BRANCH_TIP=$(git -C "$WT" rev-parse --verify --quiet "refs/heads/$PR_BRANCH^{commit}" 2>/dev/null); then
-  if ! fm_dod_pr_branch_pushed "$WT" "$PROJECT" "$MODE" "$PR_BRANCH" "$PR_HEAD"; then
-    echo "error: named head $PR_BRANCH_TIP is unreachable outside the worker copy" >&2
+  if ! fm_dod_pr_branch_pushed "$WT" "$PR_BRANCH" "$PR_HEAD"; then
+    echo "error: named head $PR_BRANCH_TIP could not be verified in pull request head $PR_HEAD" >&2
     exit 1
   fi
 elif { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \

@@ -780,6 +780,47 @@ test_merge_of_pushed_stacked_pr_ignores_later_branch() {
   pass "fm-pr-merge merges a pushed stacked PR while the copy's HEAD is on a later unpushed branch"
 }
 
+test_merge_of_pipeline_head_fetches_missing_ancestry() {
+  local dir part1 forge_head later stale refs_before
+  dir=$(make_case stacked-merge-pipeline-head)
+  make_stacked_copy "$dir" no-mistakes
+  part1=$(git -C "$dir/wt" rev-parse HEAD)
+  stale=$(git -C "$dir/wt" rev-parse refs/remotes/origin/main)
+  git -C "$dir/wt" update-ref refs/remotes/origin/part-1 "$stale"
+  git init -q --bare "$dir/remote.git"
+  git -C "$dir/wt" remote add origin "$dir/remote.git"
+  git clone -q "$dir/wt" "$dir/pipeline" || fail "could not clone the pipeline copy"
+  git -C "$dir/pipeline" remote set-url origin "$dir/remote.git"
+  git -C "$dir/pipeline" commit -q --allow-empty -m 'pipeline fix for part 1'
+  forge_head=$(git -C "$dir/pipeline" rev-parse HEAD)
+  git -C "$dir/pipeline" push -q origin part-1 || fail "could not publish the pipeline head"
+  git -C "$dir/wt" checkout -q -b part-2
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
+  later=$(git -C "$dir/wt" rev-parse HEAD)
+  refs_before=$(git -C "$dir/wt" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/remotes)
+  [ "$(git -C "$dir/remote.git" rev-parse part-1^)" = "$part1" ] \
+    || fail "the forge head did not contain the local PR tip as its parent"
+  [ -z "$(git -C "$dir/wt" for-each-ref --format='%(refname)' --contains="$part1" refs/remotes)" ] \
+    || fail "the worker already had a remote-tracking ref containing part-1"
+  git -C "$dir/wt" cat-file -e "$forge_head^{commit}" 2>/dev/null \
+    && fail "the worker already had the pipeline head"
+  git -C "$dir/remote.git" cat-file -e "$later^{commit}" 2>/dev/null \
+    && fail "part-2 was already pushed"
+
+  FM_TEST_GH_HEAD=$forge_head FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+    > "$dir/stdout" 2> "$dir/stderr" || fail "published pipeline head was refused with stale refs: $(cat "$dir/stderr")"
+  grep -qxF "pr merge 4 --repo o/r --match-head-commit $forge_head --squash" "$dir/gh.log" \
+    || fail "pipeline PR merge was not bound to the forge's current head"
+  git -C "$dir/wt" cat-file -e "$forge_head^{commit}" 2>/dev/null \
+    || fail "the missing pipeline head was not fetched"
+  [ "$(git -C "$dir/wt" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/remotes)" = "$refs_before" ] \
+    || fail "checking pipeline ancestry moved local or remote-tracking branches"
+  [ "$(git -C "$dir/wt" symbolic-ref --short HEAD)" = part-2 ] \
+    && [ "$(git -C "$dir/wt" rev-parse HEAD)" = "$later" ] \
+    || fail "checking pipeline ancestry changed the worker's current branch or HEAD"
+  pass "fm-pr-merge fetches a pipeline head and accepts its local ancestor despite stale remote-tracking refs"
+}
+
 test_merge_refuses_unpushed_commit_on_stacked_pr_branch() {
   local dir part1 later
   dir=$(make_case stacked-merge-unpushed)
@@ -792,7 +833,7 @@ test_merge_refuses_unpushed_commit_on_stacked_pr_branch() {
   : > "$dir/gh.log"
   FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
     > "$dir/stdout" 2> "$dir/stderr" && fail "merged a stacked PR whose own branch has an unpushed commit"
-  grep -Fq "named head $later is unreachable outside the worker copy" "$dir/stderr" \
+  grep -Fq "named head $later could not be verified in pull request head $part1" "$dir/stderr" \
     || fail "unpushed PR branch refusal was not the named-head refusal: $(cat "$dir/stderr")"
   ! grep -q '^pr merge' "$dir/gh.log" || fail "a refused stacked PR still reached the forge merge"
 
@@ -804,7 +845,7 @@ test_merge_refuses_unpushed_commit_on_stacked_pr_branch() {
   : > "$dir/gh.log"
   FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
     > "$dir/stdout" 2> "$dir/stderr" && fail "merged a PR whose checked-out branch has an unpushed commit"
-  grep -Fq "named head $later is unreachable outside the worker copy" "$dir/stderr" \
+  grep -Fq "named head $later could not be verified in pull request head $part1" "$dir/stderr" \
     || fail "unpushed checked-out PR branch refusal was not the named-head refusal: $(cat "$dir/stderr")"
   ! grep -q '^pr merge' "$dir/gh.log" || fail "a refused PR still reached the forge merge"
   pass "fm-pr-merge still refuses a stacked PR whose own branch has commits that were never pushed"
@@ -833,10 +874,17 @@ test_merge_refuses_unpushed_pr_branch_with_pushed_head() {
 
     FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
       > "$dir/stdout" 2> "$dir/stderr" && fail "$mode merged part-1's unpushed fix while HEAD was on pushed part-2"
-    grep -Fq "named head $fix is unreachable outside the worker copy" "$dir/stderr" \
+    grep -Fq "named head $fix could not be verified in pull request head $part1" "$dir/stderr" \
       || fail "$mode refusal did not name part-1's unpushed fix: $(cat "$dir/stderr")"
     ! grep -q '^pr merge' "$dir/gh.log" || fail "$mode refused PR still reached the forge merge"
     [ ! -e "$dir/home/state/task-a.check.sh" ] || fail "$mode refused PR still armed a poll"
+
+    git -C "$dir/wt" push -q origin part-1:other-fixes || fail "could not push the fix to another branch"
+    FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+      > "$dir/stdout" 2> "$dir/stderr" && fail "$mode merged part-1 with its fix published only on another branch"
+    grep -Fq "named head $fix could not be verified in pull request head $part1" "$dir/stderr" \
+      || fail "$mode accepted a remote-tracking ref in place of the PR head: $(cat "$dir/stderr")"
+    ! grep -q '^pr merge' "$dir/gh.log" || fail "$mode unrelated published branch allowed the forge merge"
   done
   pass "fm-pr-merge refuses an unpushed PR branch even when another branch's HEAD is pushed"
 }
@@ -3611,6 +3659,7 @@ test_secondmate_record_refuses_a_pr_watch
 test_unpushed_named_head_refuses_registration
 test_direct_pr_unpushed_commit_refuses_registration
 test_merge_of_pushed_stacked_pr_ignores_later_branch
+test_merge_of_pipeline_head_fetches_missing_ancestry
 test_merge_refuses_unpushed_commit_on_stacked_pr_branch
 test_merge_refuses_unpushed_pr_branch_with_pushed_head
 test_merge_uses_head_gate_when_pr_branch_is_absent
