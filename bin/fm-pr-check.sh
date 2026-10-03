@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Record a PR-ready task: store one validated canonical pr=<url> and the forge's
 # exact pr_head=<sha> when available, then atomically arm a static merge poll.
-# Refuses when bin/fm-dod-lib.sh will not accept the named head as reachable
-# outside the worker's disposable copy; in no-mistakes mode a forge-reported
-# head is that named head and is already stored on the forge. GitHub merge-time
-# named-head checks belong to bin/fm-pr-merge.sh.
+# PR-ready registration uses the named-head gate owned by bin/fm-dod-lib.sh.
 # The watcher check source is byte-for-byte bin/fm-pr-poll.sh; task and PR data
 # live only in a private sidecar and are never interpolated into shell source.
 # A GitHub pull request URL, a GitLab merge request URL, and a Gerrit change URL
@@ -16,8 +13,8 @@
 # Mark the pull request ready for review, then arm again; a lane that keeps a
 # draft on purpose declares a wait instead of reporting done. An unreadable
 # draft state does not refuse, matching how the head read below is optional.
-# bin/fm-pr-merge.sh records through this script with FM_PR_CHECK_MERGE=1 and
-# skips this refusal, because its own merge-time draft refusal is authoritative.
+# bin/fm-pr-merge.sh records through this script with FM_PR_CHECK_MERGE=1;
+# its header owns the deferred GitHub draft and named-head checks.
 # Usage: fm-pr-check.sh <task-id> <pr-url>
 set -eu
 

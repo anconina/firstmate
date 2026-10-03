@@ -37,7 +37,20 @@
 # source fails, so known missing checks and all read errors are reported together.
 # github_branch_rules_unavailable_on_plan owns the narrow plan-unavailable
 # exception; every other unreadable required source refuses.
-# Every failing condition is reported, not just the first.
+# These live forge checks report every failing condition, not just the first.
+# Before merging, the forge's headRefName must also be readable and valid.
+# If that branch exists in the worker copy, its tip must equal or be an ancestor
+# of the head selected by github_verify_mergeable after any retries. A later
+# unpushed HEAD on another local branch does not block this merge, but commits
+# on the PR branch missing from that verified head do, even when another remote
+# branch contains them. This applies in both direct-PR and no-mistakes mode.
+# bin/fm-dod-lib.sh's fm_dod_pr_branch_pushed fetches a missing verified head
+# from origin for the ancestry check without switching branches or moving local
+# or remote-tracking refs; failure to prove containment refuses the merge.
+# If the local PR branch is absent, direct-PR falls back to
+# fm_dod_accept_ship_done; no-mistakes keeps the verified forge head as its named
+# head. Ordinary PR-ready registration still follows bin/fm-dod-lib.sh's contract.
+# tests/fm-pr-check-security.test.sh covers these merge-time publication guards.
 # The verified head is then passed to gh as
 # --match-head-commit, so a push that lands between that read and the merge
 # fails the merge instead of landing commits nothing verified. Reading that

@@ -13,7 +13,7 @@
 # The optional third argument is the task's full ship-branch name (a project's
 # registered prefix may replace the legacy `fm/` one); it defaults to `fm/<task-id>`
 # and is the immutable task branch rendered in every delivery contract.
-# Callers of the gate are bin/fm-crew-state.sh (current-state done),
+# Ready-report callers of the gate are bin/fm-crew-state.sh (current-state done),
 # bin/fm-pr-check.sh (PR registration), and bin/fm-inactive-reconcile.sh
 # (secondmate ledger-first publish of a child done). A ship `done:` is not
 # accepted while the named head exists only in the worker's disposable copy.
@@ -628,12 +628,8 @@ fm_dod_named_head_reachable_outside_worktree() {  # <worktree> <project> <mode> 
   [ "$mode" = local-only ] && fm_dod_ref_contains "$project" refs/heads "$sha"
 }
 
-# 0 when the copy's local <branch> - the head branch the forge reports for one
-# pull request - holds nothing its forge head lacks: its tip is <forge-head> or
-# an ancestor of it. A copy that stacks several pull requests
-# moves HEAD on to a later local branch, so for a merge of one of them that
-# pull request's own branch, not HEAD, carries its named head. 1 when the
-# branch is absent or its tip cannot be verified in the forge head's ancestry.
+# GitHub merge-time publication check; bin/fm-pr-merge.sh's header owns its
+# contract. Returns 0 for verified containment, nonzero otherwise.
 fm_dod_pr_branch_pushed() {  # <worktree> <branch> <forge-head>
   local wt=$1 branch=$2 forge_head=$3 tip
   [ -n "$wt" ] && [ -d "$wt" ] || return 1
