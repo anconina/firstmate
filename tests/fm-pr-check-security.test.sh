@@ -193,6 +193,7 @@ case " $* " in
   *" api repos/"*)
     printf '%s\n' '{"permissions":{"push":false}}'
     ;;
+  *" headRefName "*) printf '%s\n' "${FM_TEST_GH_HEAD_REF:-}" ;;
   *" headRefOid "*) printf '%s\n' "${FM_TEST_GH_HEAD:-0123456789abcdef0123456789abcdef01234567}" ;;
   *" state "*)
     [ "${FM_TEST_GH_FAIL:-0}" = 0 ] || exit 1
@@ -733,6 +734,77 @@ test_direct_pr_unpushed_commit_refuses_registration() {
     || fail "direct-PR refusal did not name the unpushed commit: $(cat "$dir/stderr")"
   [ ! -e "$dir/home/state/task-a.check.sh" ] || fail "direct-PR unpushed commit still armed a poll"
   pass "fm-pr-check refuses a direct-PR registration while a later commit is only in the copy"
+}
+
+# A direct-PR copy building stacked pull requests: part-1 is pushed and is the
+# forge's head for its pull request, then the worker moves on to part-2, a
+# later local branch with a commit only in the copy. The copy's HEAD is that
+# later commit. Arming the part-1 pull request still names HEAD and is refused,
+# but merging it names part-1's own branch, which the forge holds.
+make_stacked_copy() {  # <dir>
+  local dir=$1
+  fm_write_meta "$dir/home/state/task-a.meta" \
+    "window=firstmate:fm-task-a" "endpoint_task_id=task-a" "worktree=$dir/wt" \
+    "project=$dir/project" "kind=ship" "mode=direct-PR" \
+    "pr=https://github.com/o/r/pull/4"
+  git -C "$dir/wt" checkout -q -b part-1
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 1'
+  git -C "$dir/wt" update-ref refs/remotes/origin/part-1 "$(git -C "$dir/wt" rev-parse HEAD)"
+}
+
+test_merge_of_pushed_stacked_pr_ignores_later_branch() {
+  local dir part1 later
+  dir=$(make_case stacked-merge)
+  make_stacked_copy "$dir"
+  part1=$(git -C "$dir/wt" rev-parse HEAD)
+  git -C "$dir/wt" checkout -q -b part-2
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
+  later=$(git -C "$dir/wt" rev-parse HEAD)
+
+  FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_check_entry "$dir" task-a https://github.com/o/r/pull/4 \
+    > "$dir/stdout" 2> "$dir/stderr" && fail "arming a stacked PR named a head that is only in the copy"
+  grep -Fq "named head $later is unreachable outside the worker copy" "$dir/stderr" \
+    || fail "arming refusal did not name the copy's HEAD: $(cat "$dir/stderr")"
+
+  : > "$dir/gh.log"
+  FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+    > "$dir/stdout" 2> "$dir/stderr" \
+    || fail "merging a pushed, green stacked PR was refused for a later unpushed branch: $(cat "$dir/stderr")"
+  grep -qxF "pr merge 4 --repo o/r --match-head-commit $part1 --squash" "$dir/gh.log" \
+    || fail "stacked PR merge was not bound to the forge's head: $(cat "$dir/gh.log")"
+  grep -qxF 'pr=https://github.com/o/r/pull/4' "$dir/home/state/task-a.meta" \
+    || fail "stacked PR merge did not record the merged PR"
+  pass "fm-pr-merge merges a pushed stacked PR while the copy's HEAD is on a later unpushed branch"
+}
+
+test_merge_refuses_unpushed_commit_on_stacked_pr_branch() {
+  local dir part1 later
+  dir=$(make_case stacked-merge-unpushed)
+  make_stacked_copy "$dir"
+  part1=$(git -C "$dir/wt" rev-parse HEAD)
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 1 fix, only in the copy'
+  git -C "$dir/wt" checkout -q -b part-2
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
+  later=$(git -C "$dir/wt" rev-parse HEAD)
+  : > "$dir/gh.log"
+  FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+    > "$dir/stdout" 2> "$dir/stderr" && fail "merged a stacked PR whose own branch has an unpushed commit"
+  grep -Fq "named head $later is unreachable outside the worker copy" "$dir/stderr" \
+    || fail "unpushed PR branch refusal was not the named-head refusal: $(cat "$dir/stderr")"
+  ! grep -q '^pr merge' "$dir/gh.log" || fail "a refused stacked PR still reached the forge merge"
+
+  dir=$(make_case stacked-merge-unpushed-head)
+  make_stacked_copy "$dir"
+  part1=$(git -C "$dir/wt" rev-parse HEAD)
+  git -C "$dir/wt" commit -q --allow-empty -m 'part 1 fix, only in the copy'
+  later=$(git -C "$dir/wt" rev-parse HEAD)
+  : > "$dir/gh.log"
+  FM_TEST_GH_HEAD=$part1 FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
+    > "$dir/stdout" 2> "$dir/stderr" && fail "merged a PR whose checked-out branch has an unpushed commit"
+  grep -Fq "named head $later is unreachable outside the worker copy" "$dir/stderr" \
+    || fail "unpushed checked-out PR branch refusal was not the named-head refusal: $(cat "$dir/stderr")"
+  ! grep -q '^pr merge' "$dir/gh.log" || fail "a refused PR still reached the forge merge"
+  pass "fm-pr-merge still refuses a stacked PR whose own branch has commits that were never pushed"
 }
 
 test_valid_recording_and_merge_derivation() {
@@ -3468,6 +3540,8 @@ test_draft_pull_request_is_not_armed
 test_secondmate_record_refuses_a_pr_watch
 test_unpushed_named_head_refuses_registration
 test_direct_pr_unpushed_commit_refuses_registration
+test_merge_of_pushed_stacked_pr_ignores_later_branch
+test_merge_refuses_unpushed_commit_on_stacked_pr_branch
 test_valid_recording_and_merge_derivation
 test_rejected_metacharacter_bytes_are_inert
 test_static_poll_contract

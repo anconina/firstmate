@@ -628,6 +628,22 @@ fm_dod_named_head_reachable_outside_worktree() {  # <worktree> <project> <mode> 
   [ "$mode" = local-only ] && fm_dod_ref_contains "$project" refs/heads "$sha"
 }
 
+# 0 when the copy's local <branch> - the head branch the forge reports for one
+# pull request - holds nothing the forge lacks: its tip is <forge-head> or is
+# reachable outside the worker copy. A copy that stacks several pull requests
+# moves HEAD on to a later local branch, so for a merge of one of them that
+# pull request's own branch, not HEAD, carries its named head. 1 when the
+# branch is absent from the copy or carries a commit that was never pushed.
+fm_dod_pr_branch_pushed() {  # <worktree> <project> <mode> <branch> <forge-head>
+  local wt=$1 project=$2 mode=$3 branch=$4 forge_head=$5 tip
+  [ -n "$wt" ] && [ -d "$wt" ] || return 1
+  fm_pr_head_valid "$forge_head" || return 1
+  git check-ref-format --branch "$branch" >/dev/null 2>&1 || return 1
+  tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null) || return 1
+  [ "$tip" = "$forge_head" ] && return 0
+  fm_dod_named_head_reachable_outside_worktree "$wt" "$project" "$mode" "$tip"
+}
+
 # 0 when <line> is not a ship done: to gate, when it names the task's recorded
 # PR whose head the forge holds, when it names a Gerrit change whose current
 # patch set carries the worker copy's HEAD tree, or otherwise when its named

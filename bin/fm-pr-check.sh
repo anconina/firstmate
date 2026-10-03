@@ -3,7 +3,10 @@
 # exact pr_head=<sha> when available, then atomically arm a static merge poll.
 # Refuses when bin/fm-dod-lib.sh will not accept the named head as reachable
 # outside the worker's disposable copy; in no-mistakes mode a forge-reported
-# head is that named head and is already stored on the forge.
+# head is that named head and is already stored on the forge. When
+# bin/fm-pr-merge.sh records through this script, a GitHub pull request whose
+# own head branch in the copy matches what the forge holds passes even after
+# HEAD moved on to a later unpushed branch.
 # The watcher check source is byte-for-byte bin/fm-pr-poll.sh; task and PR data
 # live only in a private sidecar and are never interpolated into shell source.
 # A GitHub pull request URL, a GitLab merge request URL, and a Gerrit change URL
@@ -142,7 +145,19 @@ case "$PROVIDER:$MODE" in
   *:no-mistakes|*:) DONE_LINE="done: PR $URL checks green" ;;
   *) DONE_LINE="done: PR $URL" ;;
 esac
+# A merge names one pull request, and a copy that stacks several moves HEAD on
+# to a later local branch once that one is pushed. bin/fm-pr-merge.sh checks the
+# forge's head green and binds the merge to it, so the merge passes the gate
+# when the pull request's own branch in the copy holds nothing the forge lacks;
+# an unpushed commit on that branch is still refused.
+merge_pr_branch_pushed() {
+  local branch
+  [ "${FM_PR_CHECK_MERGE:-}" = 1 ] && [ -n "$PR_HEAD" ] || return 1
+  branch=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) || return 1
+  fm_dod_pr_branch_pushed "$WT" "$PROJECT" "$MODE" "$branch" "$PR_HEAD"
+}
 if { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
+  && ! merge_pr_branch_pushed \
   && ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "$DONE_LINE" "$STATE" "$ID" "$META"); then
   echo "error: $GATE_REASON" >&2
   exit 1
