@@ -1,0 +1,46 @@
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/counterfactual/home
+Real GitHub PR: https://github.com/kunchenguid/firstmate/pull/6489
+PR head: ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Current branch: part-2
+Unpublished current HEAD: fd515bb903f9462eca0529bf93c128e560994478
+
+BASE COMMIT: 1f3e769616fdf9f31f85f4c3e6a9f71606634238
+Command: FM_HOME=<disposable-home> <base>/bin/fm-pr-merge.sh counterfactual https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error: named head fd515bb903f9462eca0529bf93c128e560994478 is unreachable outside the worker copy
+exit=1
+
+TARGET COMMIT: 7595b5a37968395d6c3e05d772ddd79db2fc25dd
+Command: FM_HOME=<same-disposable-home> bin/fm-pr-merge.sh counterfactual https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+armed: state/counterfactual.check.sh
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+
+Observed counterfactual: identical worker and forge state; the base rejects the unpublished later branch, the target passes preflight and reaches the intentional GitHub CLI parser stop. No merge was performed.
+{"headRefOid":"ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a","mergedAt":null,"state":"OPEN"}

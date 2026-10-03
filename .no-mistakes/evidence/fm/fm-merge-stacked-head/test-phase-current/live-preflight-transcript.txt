@@ -1,0 +1,838 @@
+Real Firstmate entrypoints, Git, gh and GitHub API. No fake executables or responses.
+The unsupported gh flag stops every potentially eligible merge before any mutation. These are preflight/refusal proofs, not completed merges.
+$ gh pr merge 6489 --repo kunchenguid/firstmate --fm-validation-read-only-stop
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+exit=1
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker fetch -q --depth=3 origin ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+
+SCENARIO: Pushed PR with later unpushed branch: direct-PR
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+
+SCENARIO: Ordinary PR-ready registration still checks worker HEAD
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-check.sh live-task https://github.com/kunchenguid/firstmate/pull/6489
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+error: named head 8652e1800b462d2fd62fd6e4f5edab0a124af435 is unreachable outside the worker copy
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+Observed: named head 8652e1800b462d2fd62fd6e4f5edab0a124af435 is unreachable outside the worker copy; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker commit -q --allow-empty -m 'unpublished fix on PR branch'
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+5d1808bbf323e893340874034b0426e80c205eb6
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q part-2
+exit=0
+
+SCENARIO: Unpublished PR-branch fix, unpushed later HEAD: direct-PR
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+8652e1800b462d2fd62fd6e4f5edab0a124af435
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q -b published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+
+SCENARIO: Unpublished PR-branch fix, already published current HEAD: direct-PR
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+published-head
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+published-head
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker checkout -q fm/fm-up-remote-reply-tmp
+exit=0
+
+SCENARIO: Unpublished fix on checked-out PR branch: direct-PR
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+5d1808bbf323e893340874034b0426e80c205eb6
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker symbolic-ref --short HEAD
+fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse HEAD
+5d1808bbf323e893340874034b0426e80c205eb6
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp 5d1808bbf323e893340874034b0426e80c205eb6
+refs/heads/part-2 8652e1800b462d2fd62fd6e4f5edab0a124af435
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker status --porcelain
+exit=0
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-direct-PR/worker rev-parse 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^'
+f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker fetch -q --depth=3 origin ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+
+SCENARIO: Pushed PR with later unpushed branch: no-mistakes
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+9f0d3d5090745b8ce3203256ae84be8cd030fa61
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+9f0d3d5090745b8ce3203256ae84be8cd030fa61
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker commit -q --allow-empty -m 'unpublished fix on PR branch'
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q part-2
+exit=0
+
+SCENARIO: Unpublished PR-branch fix, unpushed later HEAD: no-mistakes
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+9f0d3d5090745b8ce3203256ae84be8cd030fa61
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+9f0d3d5090745b8ce3203256ae84be8cd030fa61
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q -b published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+
+SCENARIO: Unpublished PR-branch fix, already published current HEAD: no-mistakes
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+published-head
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+published-head
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker checkout -q fm/fm-up-remote-reply-tmp
+exit=0
+
+SCENARIO: Unpublished fix on checked-out PR branch: no-mistakes
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker symbolic-ref --short HEAD
+fm/fm-up-remote-reply-tmp
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse HEAD
+dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9
+refs/heads/part-2 9f0d3d5090745b8ce3203256ae84be8cd030fa61
+refs/heads/published-head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker status --porcelain
+exit=0
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/stacked-no-mistakes/worker rev-parse 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^'
+f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker fetch -q --depth=3 origin f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker rev-parse 'f715b667473925e7ad1d33838c438ccce5ccaf75^'
+7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker cat-file -e 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}'
+fatal: Not a valid object name ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}
+exit=128
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker for-each-ref '--format=%(refname)' --contains=f715b667473925e7ad1d33838c438ccce5ccaf75 refs/remotes
+exit=0
+
+SCENARIO: Missing pipeline head is fetched with stale refs: direct-PR
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker rev-parse HEAD
+b40426c3dd9acfa24cb761a1d863cd266b128515
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+refs/heads/part-2 b40426c3dd9acfa24cb761a1d863cd266b128515
+refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker rev-parse HEAD
+b40426c3dd9acfa24cb761a1d863cd266b128515
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+refs/heads/part-2 b40426c3dd9acfa24cb761a1d863cd266b128515
+refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-direct-PR/worker cat-file -e 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}'
+exit=0
+Observed: formerly missing real GitHub PR head exists after the preflight.
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker fetch -q --depth=3 origin f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker rev-parse 'f715b667473925e7ad1d33838c438ccce5ccaf75^'
+7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker cat-file -e 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}'
+fatal: Not a valid object name ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}
+exit=128
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker for-each-ref '--format=%(refname)' --contains=f715b667473925e7ad1d33838c438ccce5ccaf75 refs/remotes
+exit=0
+
+SCENARIO: Missing pipeline head is fetched with stale refs: no-mistakes
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker rev-parse HEAD
+426b6b31d9bea326a71ce30fd7f5f65aa6a5e2cd
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+refs/heads/part-2 426b6b31d9bea326a71ce30fd7f5f65aa6a5e2cd
+refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker rev-parse HEAD
+426b6b31d9bea326a71ce30fd7f5f65aa6a5e2cd
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/fm/fm-up-remote-reply-tmp f715b667473925e7ad1d33838c438ccce5ccaf75
+refs/heads/part-2 426b6b31d9bea326a71ce30fd7f5f65aa6a5e2cd
+refs/remotes/origin/fm/fm-up-remote-reply-tmp 7de4b712a5d3a7299504bf341e80270997a2e0cb
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/pipeline-no-mistakes/worker cat-file -e 'ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a^{commit}'
+exit=0
+Observed: formerly missing real GitHub PR head exists after the preflight.
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker fetch -q --depth=3 origin ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker branch -m fm/fm-up-remote-reply-tmp local-part-1
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker rev-parse HEAD
+44756f14172c71d5d91703d018b50bc3de5b4111
+exit=0
+
+SCENARIO: Absent PR branch retains direct-PR unpublished-HEAD refusal
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker rev-parse HEAD
+44756f14172c71d5d91703d018b50bc3de5b4111
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 44756f14172c71d5d91703d018b50bc3de5b4111
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 44756f14172c71d5d91703d018b50bc3de5b4111 is unreachable outside the worker copy
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker rev-parse HEAD
+44756f14172c71d5d91703d018b50bc3de5b4111
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 44756f14172c71d5d91703d018b50bc3de5b4111
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker status --porcelain
+exit=0
+Observed: named head 44756f14172c71d5d91703d018b50bc3de5b4111 is unreachable outside the worker copy; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker checkout -q local-part-1
+exit=0
+
+SCENARIO: Absent PR branch accepts direct-PR published HEAD
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker symbolic-ref --short HEAD
+local-part-1
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 44756f14172c71d5d91703d018b50bc3de5b4111
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker symbolic-ref --short HEAD
+local-part-1
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker rev-parse HEAD
+ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 44756f14172c71d5d91703d018b50bc3de5b4111
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-direct/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-lab-home.sh create /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/home
+/Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/home
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes init -q /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker remote add origin https://github.com/cloud-practitioner/firstmate.git
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker fetch -q --depth=3 origin ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker checkout -q -b fm/fm-up-remote-reply-tmp FETCH_HEAD
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker update-ref refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker branch -m fm/fm-up-remote-reply-tmp local-part-1
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker checkout -q -b part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker commit -q --allow-empty -m 'later part kept only in disposable worker'
+exit=0
+
+SCENARIO: Absent PR branch keeps no-mistakes forge-head behavior
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker rev-parse HEAD
+90f9cf7d72602a9bada7c28c03d62d06cc49cc35
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 90f9cf7d72602a9bada7c28c03d62d06cc49cc35
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker status --porcelain
+exit=0
+$ /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/bin/fm-pr-merge.sh live-task https://github.com/kunchenguid/firstmate/pull/6489 -- --fm-validation-read-only-stop
+armed: state/live-task.check.sh
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: never, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  repair missing watcher supervision according to the session-start block for this harness; do not use shell &.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+
+Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+
+Flags:
+      --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+  -A, --author-email text       Email text for merge commit author
+      --auto                    Automatically merge only after necessary requirements are met
+  -b, --body text               Body text for the merge commit
+  -F, --body-file file          Read body text from file (use "-" to read from standard input)
+  -d, --delete-branch           Delete the local and remote branch after merge
+      --disable-auto            Disable auto-merge for this pull request
+      --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+  -m, --merge                   Merge the commits with the base branch
+  -r, --rebase                  Rebase the commits onto the base branch
+  -s, --squash                  Squash the commits into one commit and merge it into the base branch
+  -t, --subject text            Subject text for the merge commit
+  
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+exit=1
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker symbolic-ref --short HEAD
+part-2
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker rev-parse HEAD
+90f9cf7d72602a9bada7c28c03d62d06cc49cc35
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker for-each-ref '--format=%(refname) %(objectname)' refs/heads refs/remotes
+refs/heads/local-part-1 ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+refs/heads/part-2 90f9cf7d72602a9bada7c28c03d62d06cc49cc35
+refs/remotes/origin/fm/fm-up-remote-reply-tmp ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+exit=0
+$ git -C /Users/mosheanconina/.no-mistakes/worktrees/954444e3c755/01M412K529Y0VANR7WJEGK4EGQ/.test-merge-stacked/live/absent-no-mistakes/worker status --porcelain
+exit=0
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+$ gh pr view 6489 --repo kunchenguid/firstmate --json state,headRefOid,mergedAt
+{"headRefOid":"ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a","mergedAt":null,"state":"OPEN"}
+exit=0
+Remote PR remains OPEN, unmerged, and at the same head.
+Disposable homes and worker repositories removed.

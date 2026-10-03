@@ -1,0 +1,64 @@
+Scope: real CLI preflight/refusal checks against GitHub PR #6489. The unsupported flag intentionally stops gh before every possible merge. No completed merge is claimed.
+
+unknown flag: --fm-validation-read-only-stop
+SCENARIO: Pushed PR with later unpushed branch: direct-PR
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Ordinary PR-ready registration still checks worker HEAD
+error: named head 8652e1800b462d2fd62fd6e4f5edab0a124af435 is unreachable outside the worker copy
+Observed: named head 8652e1800b462d2fd62fd6e4f5edab0a124af435 is unreachable outside the worker copy; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished PR-branch fix, unpushed later HEAD: direct-PR
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished PR-branch fix, already published current HEAD: direct-PR
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished fix on checked-out PR branch: direct-PR
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head 5d1808bbf323e893340874034b0426e80c205eb6 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Pushed PR with later unpushed branch: no-mistakes
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished PR-branch fix, unpushed later HEAD: no-mistakes
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished PR-branch fix, already published current HEAD: no-mistakes
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Unpublished fix on checked-out PR branch: no-mistakes
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+Observed: named head dfceb4fbd8f73e8a7442c1a8f46aaf5180bdddc9 could not be verified in pull request head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Missing pipeline head is fetched with stale refs: direct-PR
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+Observed: formerly missing real GitHub PR head exists after the preflight.
+SCENARIO: Missing pipeline head is fetched with stale refs: no-mistakes
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+Observed: formerly missing real GitHub PR head exists after the preflight.
+SCENARIO: Absent PR branch retains direct-PR unpublished-HEAD refusal
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+error: named head 44756f14172c71d5d91703d018b50bc3de5b4111 is unreachable outside the worker copy
+Observed: named head 44756f14172c71d5d91703d018b50bc3de5b4111 is unreachable outside the worker copy; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Absent PR branch accepts direct-PR published HEAD
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+SCENARIO: Absent PR branch keeps no-mistakes forge-head behavior
+verified: https://github.com/kunchenguid/firstmate/pull/6489 is open and mergeable, with every unwaived required check reported and every unwaived check green at head ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a
+unknown flag: --fm-validation-read-only-stop
+Observed: unknown flag: --fm-validation-read-only-stop; worker branch, HEAD, refs and files unchanged; no merge recorded.
+Remote PR remains OPEN, unmerged, and at the same head.
+Disposable homes and worker repositories removed.
+
+Final GitHub state: {"headRefOid":"ddbcb1ca9bb381c5ceee4c10a20ab270c3cd8e2a","mergedAt":null,"state":"OPEN"}
