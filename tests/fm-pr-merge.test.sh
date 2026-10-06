@@ -376,7 +376,7 @@ SH
 write_mr_json() {
   local file=$1 kv key value
   local state=opened detail=mergeable conflicts=false discussions=true
-  local head=$MR_HEAD branch=fm/task-x1 pipeline_sha=$MR_HEAD pipeline_status=success pipeline=present
+  local head=$MR_HEAD branch=fm/task-x1 source_project=1 pipeline_sha=$MR_HEAD pipeline_status=success pipeline=present
   local merge_when_pipeline_succeeds=false merge_after=null
   shift
   for kv in "$@"; do
@@ -389,6 +389,7 @@ write_mr_json() {
       discussions) discussions=$value ;;
       head) head=$value ;;
       branch) branch=$value ;;
+      source_project) source_project=$value ;;
       pipeline_sha) pipeline_sha=$value ;;
       pipeline_status) pipeline_status=$value ;;
       pipeline) pipeline=$value ;;
@@ -404,8 +405,8 @@ write_mr_json() {
     "$state" "$detail" "$conflicts" > "$file"
   printf '"blocking_discussions_resolved":%s,"sha":"%s","source_branch":"%s","head_pipeline":%s,' \
     "$discussions" "$head" "$branch" "$pipeline" >> "$file"
-  printf '"merge_when_pipeline_succeeds":%s,"merge_after":%s}\n' \
-    "$merge_when_pipeline_succeeds" "$merge_after" >> "$file"
+  printf '"source_project_id":%s,"target_project_id":1,"merge_when_pipeline_succeeds":%s,"merge_after":%s}\n' \
+    "$source_project" "$merge_when_pipeline_succeeds" "$merge_after" >> "$file"
 }
 
 # make_gitlab_case <name> [<field>=<value> ...]: a case dir with both forge
@@ -1992,6 +1993,43 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
   pass "fm-pr-merge checks a GitLab direct-PR merge request's own source branch, not the copy's later HEAD"
 }
 
+# A local branch that only shares the merge request's source-branch name. From a
+# fork that name belongs to another project, so the merge gates the copy's
+# pushed HEAD and lands; from the same project it is the source branch, and its
+# commit missing from the verified head still refuses.
+test_gitlab_fork_ignores_a_same_named_local_branch() {
+  local case_dir case_name rc unrelated merge_line
+  for case_name in fork same-project; do
+    case_dir=$(make_gitlab_case "gitlab-fork-$case_name")
+    printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
+    unrelated=$(git -C "$case_dir/wt" commit-tree -m 'unrelated, only in the copy' \
+      -p HEAD "$(git -C "$case_dir/wt" rev-parse 'HEAD^{tree}')")
+    git -C "$case_dir/wt" branch fm/task-x1 "$unrelated"
+    if [ "$case_name" = fork ]; then
+      write_mr_json "$case_dir/mr.json" source_project=2
+    fi
+
+    set +e
+    run_pr_merge "$case_dir" task-x1 "$MR_URL" \
+      > "$case_dir/stdout" 2> "$case_dir/stderr"
+    rc=$?
+    set -e
+
+    merge_line=$(glab_merge_line "$case_dir/glab.log")
+    if [ "$case_name" = fork ]; then
+      expect_code 0 "$rc" "gitlab-fork-$case_name: a fork merge request was refused for a same-named local branch"
+      [ "$merge_line" = "GITLAB_HOST=$MR_HOST mr merge 7 -R $MR_PROJECT_URL --sha $MR_HEAD --yes" ] \
+        || fail "gitlab-fork-$case_name: the merge was not bound to the verified head: '$merge_line'"
+    else
+      expect_code 1 "$rc" "gitlab-fork-$case_name: the source branch's missing commit did not refuse"
+      assert_grep "named head $unrelated could not be verified in pull request head $MR_HEAD" "$case_dir/stderr" \
+        "gitlab-fork-$case_name: the refusal did not name the source branch's missing commit"
+      [ -z "$merge_line" ] || fail "gitlab-fork-$case_name: a merge was attempted despite the refusal"
+    fi
+  done
+  pass "fm-pr-merge compares a local branch only with a same-project merge request's source branch"
+}
+
 test_gitlab_unreadable_state_refuses() {
   local case_dir rc name
   for name in view-fails not-an-object split-value; do
@@ -2468,6 +2506,7 @@ test_gitlab_each_condition_refuses_independently
 test_gitlab_reports_every_failing_condition
 test_gitlab_stale_recorded_head_is_reported
 test_gitlab_direct_pr_merge_checks_the_source_branch
+test_gitlab_fork_ignores_a_same_named_local_branch
 test_gitlab_unreadable_state_refuses
 test_gitlab_invalid_head_refuses
 test_gitlab_missing_tool_refuses_before_recording
