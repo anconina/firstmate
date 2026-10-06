@@ -364,6 +364,7 @@ case "${1:-} ${2:-}" in
     exit 0
     ;;
   "api projects/2")
+    [ ! -e "$case_dir/glab-api-fails" ] || exit 1
     cat "$case_dir/source-project.json"
     exit 0
     ;;
@@ -1954,12 +1955,12 @@ test_gitlab_stale_recorded_head_is_reported() {
 # A direct-PR copy building stacked merge requests: part-1 is pushed and is the
 # verified head, while the copy's HEAD is on part-2, a later branch only in the
 # copy. The merge checks part-1's own source branch, so it lands, also when the
-# merge request comes from a fork that part-1 tracks; a part-1 fix that was
-# never pushed still refuses the merge, leaving pr= recorded and the poll armed
-# as a failed live verification does.
+# merge request comes from a fork that part-1 tracks through any URL form of
+# that fork; a part-1 fix that was never pushed still refuses the merge, leaving
+# pr= recorded and the poll armed as a failed live verification does.
 test_gitlab_direct_pr_merge_checks_the_source_branch() {
-  local case_dir case_name rc part1 fix source_project merge_line
-  for case_name in pushed fork unpushed-fix fork-unpushed-fix; do
+  local case_dir case_name rc part1 fix source_project fork_url merge_line
+  for case_name in pushed fork fork-slash fork-ssh fork-scp unpushed-fix fork-unpushed-fix; do
     case_dir=$(make_gitlab_case "gitlab-stacked-$case_name")
     printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
     git -C "$case_dir/wt" checkout -q -b part-1
@@ -1970,7 +1971,13 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
     case "$case_name" in
       fork*)
         source_project=2
-        git -C "$case_dir/wt" remote add fork "$MR_FORK_URL.git"
+        case "$case_name" in
+          fork-slash) fork_url="https://GitLab.Example/fork-owner/project/" ;;
+          fork-ssh) fork_url="ssh://git@$MR_HOST/fork-owner/project.git" ;;
+          fork-scp) fork_url="git@$MR_HOST:fork-owner/project" ;;
+          *) fork_url="$MR_FORK_URL.git" ;;
+        esac
+        git -C "$case_dir/wt" remote add fork "$fork_url"
         git -C "$case_dir/wt" config branch.part-1.remote fork
         git -C "$case_dir/wt" config branch.part-1.merge refs/heads/part-1
         ;;
@@ -2021,27 +2028,36 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
 }
 
 # A local branch that only shares the merge request's source-branch name and
-# tracks origin, not the fork. For a fork merge request it is not
-# the source branch, so the copy's HEAD is gated instead: a pushed HEAD merges
-# and an unpushed one refuses. For a same-project merge request it is the
-# source branch, and its commit missing from the verified head refuses.
+# tracks origin, or nothing, not the fork. For a fork merge request whose URLs
+# were read it is not the source branch, so the copy's HEAD is gated instead: a
+# pushed HEAD merges and an unpushed one refuses. A fork whose URLs cannot be
+# read leaves the branch unidentified, so even a pushed HEAD refuses. For a
+# same-project merge request it is the source branch, and its commit missing
+# from the verified head refuses.
 test_gitlab_fork_ignores_an_unrelated_same_named_branch() {
   local case_dir case_name rc unrelated head merge_line
-  for case_name in fork-pushed-head fork-unpushed-head same-project; do
+  for case_name in fork-pushed-head fork-unpushed-head fork-no-upstream fork-lookup-fails fork-lookup-empty \
+    same-project; do
     case_dir=$(make_gitlab_case "gitlab-namesake-$case_name")
     printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
     unrelated=$(git -C "$case_dir/wt" commit-tree -m 'unrelated, only in the copy' \
       -p HEAD "$(git -C "$case_dir/wt" rev-parse 'HEAD^{tree}')")
     git -C "$case_dir/wt" branch fm/task-x1 "$unrelated"
-    git -C "$case_dir/wt" remote add origin "$case_dir/origin.git"
-    git -C "$case_dir/wt" config branch.fm/task-x1.remote origin
-    git -C "$case_dir/wt" config branch.fm/task-x1.merge refs/heads/fm/task-x1
+    if [ "$case_name" != fork-no-upstream ]; then
+      git -C "$case_dir/wt" remote add origin "$case_dir/origin.git"
+      git -C "$case_dir/wt" config branch.fm/task-x1.remote origin
+      git -C "$case_dir/wt" config branch.fm/task-x1.merge refs/heads/fm/task-x1
+    fi
     if [ "$case_name" = fork-unpushed-head ]; then
       git -C "$case_dir/wt" commit -q --allow-empty -m 'later work, only in the copy'
     fi
     head=$(git -C "$case_dir/wt" rev-parse HEAD)
     case "$case_name" in
       fork-*) write_mr_json "$case_dir/mr.json" source_project=2 ;;
+    esac
+    case "$case_name" in
+      fork-lookup-fails) : > "$case_dir/glab-api-fails" ;;
+      fork-lookup-empty) printf '{"message":"404 Project Not Found"}\n' > "$case_dir/source-project.json" ;;
     esac
 
     set +e
@@ -2052,10 +2068,16 @@ test_gitlab_fork_ignores_an_unrelated_same_named_branch() {
 
     merge_line=$(glab_merge_line "$case_dir/glab.log")
     case "$case_name" in
-      fork-pushed-head)
+      fork-pushed-head|fork-no-upstream)
         expect_code 0 "$rc" "gitlab-namesake-$case_name: a fork merge request was refused for an unrelated same-named branch"
         [ "$merge_line" = "GITLAB_HOST=$MR_HOST mr merge 7 -R $MR_PROJECT_URL --sha $MR_HEAD --yes" ] \
           || fail "gitlab-namesake-$case_name: the merge was not bound to the verified head: '$merge_line'"
+        ;;
+      fork-lookup-*)
+        expect_code 1 "$rc" "gitlab-namesake-$case_name: an unreadable fork fell back to the copy's pushed HEAD"
+        assert_grep "source project 2 could not be read to tell whether local branch fm/task-x1 is the merge request's source branch" \
+          "$case_dir/stderr" "gitlab-namesake-$case_name: the refusal did not name the unreadable fork"
+        [ -z "$merge_line" ] || fail "gitlab-namesake-$case_name: a merge was attempted despite the refusal"
         ;;
       fork-unpushed-head)
         expect_code 1 "$rc" "gitlab-namesake-$case_name: the copy's unpushed HEAD did not refuse"
@@ -2071,7 +2093,7 @@ test_gitlab_fork_ignores_an_unrelated_same_named_branch() {
         ;;
     esac
   done
-  pass "fm-pr-merge gates the copy's HEAD when a fork merge request's branch name matches an unrelated local branch"
+  pass "fm-pr-merge gates the copy's HEAD when a fork merge request's branch name matches an unrelated local branch, and refuses when the fork cannot be read"
 }
 
 test_gitlab_unreadable_state_refuses() {

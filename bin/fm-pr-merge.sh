@@ -105,8 +105,11 @@
 # source_branch from the verified view, must be readable and valid. A GitLab
 # merge request from a fork names a branch of that fork, so a local branch of
 # the same name is its source branch only when the local branch's upstream
-# remote URL is the source project's web or clone URL, read through glab api;
-# any other local branch of that name counts as absent. If that branch exists
+# remote URL is the source project's web or clone URL, read through glab api and
+# compared by lowercase host and path without a trailing slash or .git, so the
+# https, ssh:// and git@host:path forms match. Once that read succeeds, a local
+# branch of that name with any other upstream, or none, counts as absent; a
+# source project that cannot be read refuses the merge. If that branch exists
 # in the worker copy, its tip must equal or be an ancestor of the
 # verified head. A later unpushed HEAD on another local branch does not block
 # the merge, but commits on the PR branch missing from that head do, even when
@@ -1111,24 +1114,51 @@ record_pr_metadata() {
   }
 }
 
-# 0 when the copy's local <branch> is the pull request's own head branch: always,
-# unless FM_PR_MERGE_FORK_PROJECT names a GitLab fork, whose source branch name
-# belongs to that fork. Then only a branch whose upstream remote URL is the
-# source project's web or clone URL counts.
+# A project URL as its lowercase host and path, without a user, a trailing slash
+# or .git, so the https, ssh:// and scp-style git@host:path forms of one project
+# compare equal.
+project_url_key() {  # <url>
+  local url=$1 host
+  case "$url" in
+    *://*) url=${url#*://} ;;
+    *:*) url=${url%%:*}/${url#*:} ;;
+  esac
+  host=${url%%/*}
+  url=${url#"$host"}
+  url=${url%/}
+  url=${url%.git}
+  host=${host##*@}
+  printf '%s%s\n' "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" "$url"
+}
+
+# 0 when the copy's local <branch> is the pull request's own head branch, 1 when
+# it is not, 2 when that could not be read. Always 0 unless
+# FM_PR_MERGE_FORK_PROJECT names a GitLab fork, whose source branch name belongs
+# to that fork. Then the fork's web and clone URLs must be read, and only a
+# branch whose upstream remote URL is one of them counts.
 local_branch_is_pr_source() {  # <worktree> <branch>
-  local remote url
+  local json urls remote url key source_url
   [ -n "$FM_PR_MERGE_FORK_PROJECT" ] || return 0
+  json=$(GITLAB_HOST="$FM_PR_HOST" glab api "projects/$FM_PR_MERGE_FORK_PROJECT" --hostname "$FM_PR_HOST" 2>/dev/null) \
+    || return 2
+  urls=$(printf '%s\n' "$json" | jq -r '.web_url, .http_url_to_repo, .ssh_url_to_repo | strings' 2>/dev/null) \
+    || return 2
+  [ -n "$urls" ] || return 2
   remote=$(git -C "$1" config --get "branch.$2.remote" 2>/dev/null) || return 1
   url=$(git -C "$1" remote get-url -- "$remote" 2>/dev/null) || return 1
-  GITLAB_HOST="$FM_PR_HOST" glab api "projects/$FM_PR_MERGE_FORK_PROJECT" --hostname "$FM_PR_HOST" 2>/dev/null \
-    | jq -r '.web_url, .http_url_to_repo, .ssh_url_to_repo | strings' 2>/dev/null \
-    | grep -qxF -- "$url"
+  key=$(project_url_key "$url")
+  while IFS= read -r source_url; do
+    [ "$(project_url_key "$source_url")" != "$key" ] || return 0
+  done <<EOF
+$urls
+EOF
+  return 1
 }
 
 # The merge-time publication check this file's header owns, against
 # FM_PR_MERGE_HEAD. Returns non-zero after reporting why it refused.
 require_pr_branch_published() {
-  local mode wt branch kind tip reason
+  local mode wt branch kind tip reason is_source=0
   mode=$(fm_dod_meta_value "$META" mode)
   fm_dod_forge_head_is_named_head "$mode" && return 0
   wt=$(fm_dod_meta_value "$META" worktree)
@@ -1140,11 +1170,19 @@ require_pr_branch_published() {
     echo "error: pull request head branch could not be verified" >&2
     return 1
   fi
-  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null) \
-    && local_branch_is_pr_source "$wt" "$branch"; then
-    fm_dod_pr_branch_pushed "$wt" "$branch" "$FM_PR_MERGE_HEAD" && return 0
-    echo "error: named head $tip could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
-    return 1
+  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
+    local_branch_is_pr_source "$wt" "$branch" || is_source=$?
+    case "$is_source" in
+      0)
+        fm_dod_pr_branch_pushed "$wt" "$branch" "$FM_PR_MERGE_HEAD" && return 0
+        echo "error: named head $tip could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
+        return 1
+        ;;
+      2)
+        echo "error: source project $FM_PR_MERGE_FORK_PROJECT could not be read to tell whether local branch $branch is the merge request's source branch" >&2
+        return 1
+        ;;
+    esac
   fi
   kind=$(fm_dod_meta_value "$META" kind)
   reason=$(fm_dod_accept_ship_done "${kind:-ship}" "$mode" "$wt" "$(fm_dod_meta_value "$META" project)" \
