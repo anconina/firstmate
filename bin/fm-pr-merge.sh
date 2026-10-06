@@ -102,8 +102,12 @@
 # fm_dod_forge_head_is_named_head owns: the pipeline pushes from its own
 # checkout and may rebase the branch, so the worker copy's branch can be stale.
 # In direct-PR mode the forge's head branch, GitHub's headRefName or GitLab's
-# source_branch from the verified view, must be readable and valid. If that
-# branch exists in the worker copy, its tip must equal or be an ancestor of the
+# source_branch from the verified view, must be readable and valid. A GitLab
+# merge request from a fork names a branch of that fork, so a local branch of
+# the same name is its source branch only when the local branch's upstream
+# remote URL is the source project's web or clone URL, read through glab api;
+# any other local branch of that name counts as absent. If that branch exists
+# in the worker copy, its tip must equal or be an ancestor of the
 # verified head. A later unpushed HEAD on another local branch does not block
 # the merge, but commits on the PR branch missing from that head do, even when
 # another remote branch contains them. bin/fm-dod-lib.sh's
@@ -473,17 +477,19 @@ if [ "$PROVIDER" = gitlab ]; then
 fi
 
 # Pre-merge conditions for a GitLab merge request, read from one live view of
-# the merge request. Sets FM_PR_MERGE_HEAD to the verified head and
-# FM_PR_MERGE_BRANCH to its source branch on success, and returns non-zero after
-# reporting every condition that failed.
+# the merge request. Sets FM_PR_MERGE_HEAD to the verified head,
+# FM_PR_MERGE_BRANCH to its source branch, and FM_PR_MERGE_FORK_PROJECT to its
+# source project id when that differs from the target project's, on success,
+# and returns non-zero after reporting every condition that failed.
 FM_PR_MERGE_HEAD=
 FM_PR_MERGE_BRANCH=
+FM_PR_MERGE_FORK_PROJECT=
 FM_PR_GITLAB_ASYNC_CONFIGURED=false
 gitlab_verify_mergeable() {
   local json fields line
   local total=0 named=0 refusals=''
   local state='' detail='' conflicts='' discussions=''
-  local live_head='' source_branch='' pipeline_sha='' pipeline_status='' async_configured=''
+  local live_head='' source_branch='' fork_project='' pipeline_sha='' pipeline_status='' async_configured=''
 
   # GITLAB_HOST is set to the same host the project URL already carries, so the
   # instance is taken from the parsed URL by both signals and never from the
@@ -505,6 +511,7 @@ gitlab_verify_mergeable() {
         "discussions=" + (.blocking_discussions_resolved | tostring),
         "head=" + ((.sha // "") | tostring),
         "branch=" + ((.source_branch // "") | tostring),
+        "fork_project=" + (if .source_project_id == .target_project_id then "" else ((.source_project_id // "") | tostring) end),
         "pipeline_sha=" + ((.head_pipeline.sha // "") | tostring),
         "pipeline_status=" + ((.head_pipeline.status // "") | tostring),
         "async_configured=" + (if .merge_when_pipeline_succeeds == true or (.merge_after != null) then "true" else "false" end)
@@ -523,6 +530,7 @@ gitlab_verify_mergeable() {
       discussions=*) discussions=${line#discussions=} ;;
       head=*) live_head=${line#head=} ;;
       branch=*) source_branch=${line#branch=} ;;
+      fork_project=*) fork_project=${line#fork_project=} ;;
       pipeline_sha=*) pipeline_sha=${line#pipeline_sha=} ;;
       pipeline_status=*) pipeline_status=${line#pipeline_status=} ;;
       async_configured=*) async_configured=${line#async_configured=} ;;
@@ -535,7 +543,7 @@ FIELDS
   # Every field named exactly once and no unnamed line: a value carrying a
   # newline would split into a line no name matches, so it is refused here
   # rather than silently truncated into a value a check could accept.
-  if [ "$named" -ne 9 ] || [ "$total" -ne 9 ]; then
+  if [ "$named" -ne 10 ] || [ "$total" -ne 10 ]; then
     echo "error: could not read the GitLab merge request state before merging" >&2
     return 1
   fi
@@ -579,6 +587,7 @@ FIELDS
     "$URL" "$live_head" >&2
   FM_PR_MERGE_HEAD=$live_head
   FM_PR_MERGE_BRANCH=$source_branch
+  FM_PR_MERGE_FORK_PROJECT=$fork_project
   FM_PR_GITLAB_ASYNC_CONFIGURED=$async_configured
 }
 
@@ -1102,6 +1111,20 @@ record_pr_metadata() {
   }
 }
 
+# 0 when the copy's local <branch> is the pull request's own head branch: always,
+# unless FM_PR_MERGE_FORK_PROJECT names a GitLab fork, whose source branch name
+# belongs to that fork. Then only a branch whose upstream remote URL is the
+# source project's web or clone URL counts.
+local_branch_is_pr_source() {  # <worktree> <branch>
+  local remote url
+  [ -n "$FM_PR_MERGE_FORK_PROJECT" ] || return 0
+  remote=$(git -C "$1" config --get "branch.$2.remote" 2>/dev/null) || return 1
+  url=$(git -C "$1" remote get-url -- "$remote" 2>/dev/null) || return 1
+  GITLAB_HOST="$FM_PR_HOST" glab api "projects/$FM_PR_MERGE_FORK_PROJECT" --hostname "$FM_PR_HOST" 2>/dev/null \
+    | jq -r '.web_url, .http_url_to_repo, .ssh_url_to_repo | strings' 2>/dev/null \
+    | grep -qxF -- "$url"
+}
+
 # The merge-time publication check this file's header owns, against
 # FM_PR_MERGE_HEAD. Returns non-zero after reporting why it refused.
 require_pr_branch_published() {
@@ -1117,7 +1140,8 @@ require_pr_branch_published() {
     echo "error: pull request head branch could not be verified" >&2
     return 1
   fi
-  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
+  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null) \
+    && local_branch_is_pr_source "$wt" "$branch"; then
     fm_dod_pr_branch_pushed "$wt" "$branch" "$FM_PR_MERGE_HEAD" && return 0
     echo "error: named head $tip could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
     return 1
