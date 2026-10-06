@@ -1,0 +1,282 @@
+Live run against https://github.com/kunchenguid/firstmate/pull/6679 (OPEN, MERGEABLE, CLEAN)
+head branch fm/cmd-adapter @ fcb2bedba5948f9205c0f309d365dbb22d03a00d; origin of every worker copy: https://github.com/kunchenguid/firstmate.git
+Every merge call carries `-- --help`; a gh guard refuses any real `pr merge`. No push, PR, or merge is made.
+==============================================================================
+SCENARIO baseline-before-fix-refuses-stacked-merge
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: fcb2bedba5948f9205c0f309d365dbb22d03a00d
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> <base e06a46fe>/bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  error: named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679; merge poll armed=False
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip fcb2bedba5948f9205c0f309d365dbb22d03a00d
+after: parent channel: (none)
+RESULT PASS: refused with "named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy"
+==============================================================================
+SCENARIO stacked-merge-ignores-later-unpushed-branch
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: fcb2bedba5948f9205c0f309d365dbb22d03a00d
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: the merge command's own output follows, quoted; it is the forge CLI's report, not this script's verdict:
+  error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+  gh pr merge 6679 --repo kunchenguid/firstmate --match-head-commit fcb2bedba5948f9205c0f309d365dbb22d03a00d --squash --help
+  gh api graphql -f query=query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged isInMergeQueue baseRefName}}} -F owner=kunchenguid -F repo=firstmate -F number=6679 --jq .data.repository.pullRequest | "state=" + (.state // ""), "merged=" + (.merged | tostring), "queued=" + (.isInMergeQueue | tostring), "base=" + (.baseRefName // "")
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main --jq .[] | select(.type == "merge_queue") | "merge_method=" + (.parameters.merge_method // "")
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip fcb2bedba5948f9205c0f309d365dbb22d03a00d
+after: parent channel: (none)
+RESULT PASS: publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)
+==============================================================================
+SCENARIO ordinary-registration-still-gates-copy-head
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: fcb2bedba5948f9205c0f309d365dbb22d03a00d
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-check.sh stacked https://github.com/kunchenguid/firstmate/pull/6679
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  error: named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json isDraft
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+after: meta ; merge poll armed=True
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip fcb2bedba5948f9205c0f309d365dbb22d03a00d
+after: parent channel: (none)
+RESULT PASS: refused with "named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy"
+==============================================================================
+SCENARIO unpushed-fix-on-pr-branch-refuses
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: d2c64505c5cd72df5f4c18e954d1704af74d4769
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip d2c64505c5cd72df5f4c18e954d1704af74d4769
+after: parent channel: (none)
+RESULT PASS: refused before gh pr merge with "named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d"; pr= recorded and poll armed
+==============================================================================
+SCENARIO fix-on-another-remote-branch-still-refuses
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: d2c64505c5cd72df5f4c18e954d1704af74d4769
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip d2c64505c5cd72df5f4c18e954d1704af74d4769
+after: parent channel: (none)
+RESULT PASS: refused before gh pr merge with "named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d"; pr= recorded and poll armed
+==============================================================================
+SCENARIO unpushed-fix-with-head-on-pr-branch-refuses
+worker copy HEAD:   fm/cmd-adapter @ d2c64505c5cd72df5f4c18e954d1704af74d4769
+PR branch fm/cmd-adapter tip in copy: d2c64505c5cd72df5f4c18e954d1704af74d4769
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD fm/cmd-adapter @ d2c64505c5cd72df5f4c18e954d1704af74d4769; PR branch tip d2c64505c5cd72df5f4c18e954d1704af74d4769
+after: parent channel: (none)
+RESULT PASS: refused before gh pr merge with "named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d"; pr= recorded and poll armed
+==============================================================================
+rebased setup: copy PR branch tip c84a0dfa6a9a6d8ae63f2de632dc549b9d2f8427 contained in live head = False
+==============================================================================
+SCENARIO no-mistakes-stale-rebased-branch-merges
+worker copy HEAD:   part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27
+PR branch fm/cmd-adapter tip in copy: c84a0dfa6a9a6d8ae63f2de632dc549b9d2f8427
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stacked> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: the merge command's own output follows, quoted; it is the forge CLI's report, not this script's verdict:
+  error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr merge 6679 --repo kunchenguid/firstmate --match-head-commit fcb2bedba5948f9205c0f309d365dbb22d03a00d --squash --help
+  gh api graphql -f query=query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged isInMergeQueue baseRefName}}} -F owner=kunchenguid -F repo=firstmate -F number=6679 --jq .data.repository.pullRequest | "state=" + (.state // ""), "merged=" + (.merged | tostring), "queued=" + (.isInMergeQueue | tostring), "base=" + (.baseRefName // "")
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main --jq .[] | select(.type == "merge_queue") | "merge_method=" + (.parameters.merge_method // "")
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27; PR branch tip c84a0dfa6a9a6d8ae63f2de632dc549b9d2f8427
+after: parent channel: (none)
+RESULT PASS: publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)
+==============================================================================
+stale-refs setup: live head present in copy before run = False; remote refs containing PR branch tip = (none)
+==============================================================================
+SCENARIO stale-refs-fetches-live-head-by-sha
+worker copy HEAD:   part-2 @ 8283bd205744bf5a961a1e626011e490de258267
+PR branch fm/cmd-adapter tip in copy: dc7c9ff62f64b47da6b66e87871268a8515c4bf7
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.stale-refs> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: the merge command's own output follows, quoted; it is the forge CLI's report, not this script's verdict:
+  error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+  gh pr merge 6679 --repo kunchenguid/firstmate --match-head-commit fcb2bedba5948f9205c0f309d365dbb22d03a00d --squash --help
+  gh api graphql -f query=query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged isInMergeQueue baseRefName}}} -F owner=kunchenguid -F repo=firstmate -F number=6679 --jq .data.repository.pullRequest | "state=" + (.state // ""), "merged=" + (.merged | tostring), "queued=" + (.isInMergeQueue | tostring), "base=" + (.baseRefName // "")
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main --jq .[] | select(.type == "merge_queue") | "merge_method=" + (.parameters.merge_method // "")
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 8283bd205744bf5a961a1e626011e490de258267; PR branch tip dc7c9ff62f64b47da6b66e87871268a8515c4bf7
+after: parent channel: (none)
+RESULT PASS: publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)
+after: live head fetched=True; local and remote-tracking refs unchanged=True; worker still on part-2 @ later commit=True
+==============================================================================
+absent-branch setup: PR branch fm/cmd-adapter renamed away locally; HEAD local-part-1 @ 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013
+==============================================================================
+SCENARIO absent-pr-branch-uses-head-gate
+worker copy HEAD:   local-part-1 @ 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013
+PR branch fm/cmd-adapter tip in copy: (absent)
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.absent-branch> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: named head 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013 is unreachable outside the worker copy
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD local-part-1 @ 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013; PR branch tip (absent)
+after: parent channel: (none)
+RESULT PASS: refused with "named head 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013 is unreachable outside the worker copy"
+==============================================================================
+SCENARIO secondmate-refused-merge-sends-no-ready-line
+worker copy HEAD:   part-2 @ 748926e53e3dd5a5fb99adc0dd8a6013699ee8a7
+PR branch fm/cmd-adapter tip in copy: 6709289f47c4ea87363c99bd6ba9c7cd74ee05a4
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.secondmate> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: named head 6709289f47c4ea87363c99bd6ba9c7cd74ee05a4 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 748926e53e3dd5a5fb99adc0dd8a6013699ee8a7; PR branch tip 6709289f47c4ea87363c99bd6ba9c7cd74ee05a4
+after: parent channel: (none)
+RESULT PASS: refused before gh pr merge with "named head 6709289f47c4ea87363c99bd6ba9c7cd74ee05a4 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d"; pr= recorded and poll armed; parent channel got no PR-ready line
+==============================================================================
+SCENARIO secondmate-accepted-merge-sends-no-ready-line
+worker copy HEAD:   part-2 @ 748926e53e3dd5a5fb99adc0dd8a6013699ee8a7
+PR branch fm/cmd-adapter tip in copy: fcb2bedba5948f9205c0f309d365dbb22d03a00d
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.secondmate> bin/fm-pr-merge.sh stacked https://github.com/kunchenguid/firstmate/pull/6679 -- --help
+exit: 1
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+  verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+  error: the merge command's own output follows, quoted; it is the forge CLI's report, not this script's verdict:
+  error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  gh api repos/kunchenguid/firstmate/branches/main
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefName -q .headRefName
+  gh pr merge 6679 --repo kunchenguid/firstmate --match-head-commit fcb2bedba5948f9205c0f309d365dbb22d03a00d --squash --help
+  gh api graphql -f query=query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged isInMergeQueue baseRefName}}} -F owner=kunchenguid -F repo=firstmate -F number=6679 --jq .data.repository.pullRequest | "state=" + (.state // ""), "merged=" + (.merged | tostring), "queued=" + (.isInMergeQueue | tostring), "base=" + (.baseRefName // "")
+  gh api --paginate repos/kunchenguid/firstmate/rules/branches/main --jq .[] | select(.type == "merge_queue") | "merge_method=" + (.parameters.merge_method // "")
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD part-2 @ 748926e53e3dd5a5fb99adc0dd8a6013699ee8a7; PR branch tip fcb2bedba5948f9205c0f309d365dbb22d03a00d
+after: parent channel: (none)
+RESULT PASS: publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged); parent channel got no PR-ready line
+==============================================================================
+SCENARIO secondmate-ordinary-registration-still-sends-ready-line
+worker copy HEAD:   fm/cmd-adapter @ fcb2bedba5948f9205c0f309d365dbb22d03a00d
+PR branch fm/cmd-adapter tip in copy: fcb2bedba5948f9205c0f309d365dbb22d03a00d
+forge head (live):  fcb2bedba5948f9205c0f309d365dbb22d03a00d
+$ FM_HOME=<lab fm-lab.secondmate> bin/fm-pr-check.sh stacked https://github.com/kunchenguid/firstmate/pull/6679
+exit: 0
+stderr (product):
+  WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+stdout (product):
+  armed: state/stacked.check.sh
+real gh calls:
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json isDraft
+  gh pr view https://github.com/kunchenguid/firstmate/pull/6679 --json headRefOid -q .headRefOid
+after: meta pr=https://github.com/kunchenguid/firstmate/pull/6679 pr_head=fcb2bedba5948f9205c0f309d365dbb22d03a00d; merge poll armed=True
+after: worker copy HEAD fm/cmd-adapter @ fcb2bedba5948f9205c0f309d365dbb22d03a00d; PR branch tip fcb2bedba5948f9205c0f309d365dbb22d03a00d
+after: parent channel: done [key=child-pr-stacked] [at=1791308054]: child stacked PR ready: https://github.com/kunchenguid/firstmate/pull/6679 mode=direct-PR
+RESULT PASS: ordinary registration reported the child PR ready upward
+==============================================================================
+Forge state after the run (unchanged, nothing merged): {"autoMergeRequest": null, "headRefOid": "fcb2bedba5948f9205c0f309d365dbb22d03a00d", "mergedAt": null, "state": "OPEN", "url": "https://github.com/kunchenguid/firstmate/pull/6679"}
+Removed every disposable lab home, worker copy, and the base tree (fm-live-merge.9j7xu7y8).

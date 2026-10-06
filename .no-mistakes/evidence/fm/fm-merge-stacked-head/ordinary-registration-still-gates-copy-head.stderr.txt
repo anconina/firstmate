@@ -1,0 +1,2 @@
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+error: named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy

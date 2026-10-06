@@ -1,0 +1,11 @@
+{
+  "baseRefName": "main",
+  "headRefName": "fm/cmd-adapter",
+  "headRefOid": "fcb2bedba5948f9205c0f309d365dbb22d03a00d",
+  "isDraft": false,
+  "mergeStateStatus": "CLEAN",
+  "mergeable": "MERGEABLE",
+  "mergedAt": null,
+  "state": "OPEN",
+  "url": "https://github.com/kunchenguid/firstmate/pull/6679"
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "baseline-before-fix-refuses-stacked-merge",
+    "passed": true,
+    "why": "refused with \"named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy\"",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "stacked-merge-ignores-later-unpushed-branch",
+    "passed": true,
+    "why": "publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "ordinary-registration-still-gates-copy-head",
+    "passed": true,
+    "why": "refused with \"named head 09bd62f8ee23dbfa6d6274939d39bf0b3ac41d27 is unreachable outside the worker copy\"",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "unpushed-fix-on-pr-branch-refuses",
+    "passed": true,
+    "why": "refused before gh pr merge with \"named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d\"; pr= recorded and poll armed",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "fix-on-another-remote-branch-still-refuses",
+    "passed": true,
+    "why": "refused before gh pr merge with \"named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d\"; pr= recorded and poll armed",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "unpushed-fix-with-head-on-pr-branch-refuses",
+    "passed": true,
+    "why": "refused before gh pr merge with \"named head d2c64505c5cd72df5f4c18e954d1704af74d4769 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d\"; pr= recorded and poll armed",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "no-mistakes-stale-rebased-branch-merges",
+    "passed": true,
+    "why": "publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "stale-refs-fetches-live-head-by-sha",
+    "passed": true,
+    "why": "publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged)",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "absent-pr-branch-uses-head-gate",
+    "passed": true,
+    "why": "refused with \"named head 3eaa0cd680b8d41ee2ed111f4871c10f7dfd2013 is unreachable outside the worker copy\"",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "secondmate-refused-merge-sends-no-ready-line",
+    "passed": true,
+    "why": "refused before gh pr merge with \"named head 6709289f47c4ea87363c99bd6ba9c7cd74ee05a4 could not be verified in pull request head fcb2bedba5948f9205c0f309d365dbb22d03a00d\"; pr= recorded and poll armed; parent channel got no PR-ready line",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "secondmate-accepted-merge-sends-no-ready-line",
+    "passed": true,
+    "why": "publication check passed; real gh pr merge reached bound to live head (as --help, so nothing merged); parent channel got no PR-ready line",
+    "exit": 1,
+    "live": true,
+    "actual_merge": false
+  },
+  {
+    "name": "secondmate-ordinary-registration-still-sends-ready-line",
+    "passed": true,
+    "why": "ordinary registration reported the child PR ready upward",
+    "exit": 0,
+    "live": true,
+    "actual_merge": false
+  }
+]

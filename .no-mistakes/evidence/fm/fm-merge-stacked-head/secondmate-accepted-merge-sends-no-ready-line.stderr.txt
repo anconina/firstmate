@@ -1,0 +1,41 @@
+WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+verified: https://github.com/kunchenguid/firstmate/pull/6679 is open and mergeable, with every unwaived required check reported and every unwaived check green at head fcb2bedba5948f9205c0f309d365dbb22d03a00d
+error: the merge command's own output follows, quoted; it is the forge CLI's report, not this script's verdict:
+error: > Merge a pull request on GitHub.
+error: > 
+error: > Without an argument, the pull request that belongs to the current branch
+error: > is selected.
+error: > 
+error: > When targeting a branch that requires a merge queue, no merge strategy is required.
+error: > If required checks have not yet passed, auto-merge will be enabled.
+error: > If required checks have passed, the pull request will be added to the merge queue.
+error: > To bypass a merge queue and merge directly, pass the `--admin` flag.
+error: > 
+error: > 
+error: > USAGE
+error: >   gh pr merge [<number> | <url> | <branch>] [flags]
+error: > 
+error: > FLAGS
+error: >       --admin                   Use administrator privileges to merge a pull request that does not meet requirements
+error: >   -A, --author-email text       Email text for merge commit author
+error: >       --auto                    Automatically merge only after necessary requirements are met
+error: >   -b, --body text               Body text for the merge commit
+error: >   -F, --body-file file          Read body text from file (use "-" to read from standard input)
+error: >   -d, --delete-branch           Delete the local and remote branch after merge
+error: >       --disable-auto            Disable auto-merge for this pull request
+error: >       --match-head-commit SHA   Commit SHA that the pull request head must match to allow merge
+error: >   -m, --merge                   Merge the commits with the base branch
+error: >   -r, --rebase                  Rebase the commits onto the base branch
+error: >   -s, --squash                  Squash the commits into one commit and merge it into the base branch
+error: >   -t, --subject text            Subject text for the merge commit
+error: > 
+error: > INHERITED FLAGS
+error: >       --help                     Show help for command
+error: >   -R, --repo [HOST/]OWNER/REPO   Select another repository using the [HOST/]OWNER/REPO format
+error: > 
+error: > LEARN MORE
+error: >   Use `gh <command> <subcommand> --help` for more information about a command.
+error: >   Read the manual at https://cli.github.com/manual
+error: >   Learn about exit codes using `gh help exit-codes`
+error: >   Learn about accessibility experiences using `gh help accessibility`
+error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
