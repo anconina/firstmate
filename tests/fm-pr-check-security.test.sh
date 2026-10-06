@@ -866,10 +866,14 @@ test_no_mistakes_merge_accepts_a_rebased_pipeline_head() {
 # A publication refusal comes after the merge-time registration, so like a
 # failed live verification it leaves pr= recorded and the merge poll armed,
 # while no forge merge runs until the PR branch's fix is in the verified head.
+# In a secondmate home that re-record tells the parent nothing, so a refused
+# merge is never reported ready.
 test_merge_publication_refusal_keeps_the_audit_trail() {
-  local dir part1 fix
+  local dir part1 fix replies
   dir=$(make_case merge-refused-audit-trail)
   make_stacked_copy "$dir"
+  seed_secondmate_home "$dir"
+  replies="$dir/home/state/parent-replies.status"
   part1=$(git -C "$dir/wt" rev-parse HEAD)
   fm_write_meta "$dir/home/state/task-a.meta" \
     "window=firstmate:fm-task-a" "endpoint_task_id=task-a" "worktree=$dir/wt" \
@@ -887,13 +891,19 @@ test_merge_publication_refusal_keeps_the_audit_trail() {
   grep -qxF "pr_head=$part1" "$dir/home/state/task-a.meta" \
     || fail "publication refusal did not record the forge's head"
   [ -f "$dir/home/state/task-a.check.sh" ] || fail "publication refusal did not leave the merge poll armed"
+  ! grep -qF 'child task-a PR ready' "$replies" 2>/dev/null \
+    || fail "publication refusal reported the child PR ready upward: $(cat "$replies")"
 
   : > "$dir/gh.log"
   FM_TEST_GH_HEAD=$fix FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
     > "$dir/stdout" 2> "$dir/stderr" || fail "refused the now-published PR fix: $(cat "$dir/stderr")"
   grep -qxF "pr merge 4 --repo o/r --match-head-commit $fix --squash" "$dir/gh.log" \
     || fail "published PR fix was not merged at its verified head"
-  pass "fm-pr-merge refuses an unpublished PR fix after registration, leaving the audit trail and the watch"
+  grep -qF 'merged task-a https://github.com/o/r/pull/4' "$replies" \
+    || fail "the landed merge was not reported upward: $(cat "$replies" 2>/dev/null)"
+  ! grep -qF 'child task-a PR ready' "$replies" \
+    || fail "the merge-time re-record reported the child PR ready upward"
+  pass "fm-pr-merge refuses an unpublished PR fix after registration, leaving the audit trail and the watch but no ready line"
 }
 
 test_merge_checks_branch_against_final_verified_head() {

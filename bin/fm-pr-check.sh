@@ -236,15 +236,19 @@ fi
 # silent no-op there. The poll is armed either way; a channel that cannot be
 # written is reported as actionable, and bin/fm-inactive-reconcile.sh still
 # delivers the child's own ready line on the next supervision poll.
-READY_LINE="done [key=child-pr-$ID]: child $ID PR ready: $URL"
-PR_MODE=$(grep '^mode=' "$META" | tail -1 | cut -d= -f2- || true)
-PR_YOLO=$(grep '^yolo=' "$META" | tail -1 | cut -d= -f2- || true)
-[ -z "$PR_MODE" ] || READY_LINE="$READY_LINE mode=$(fm_parent_channel_clean_note "$PR_MODE")"
-[ -z "$PR_YOLO" ] || READY_LINE="$READY_LINE yolo=$(fm_parent_channel_clean_note "$PR_YOLO")"
-READY_RC=0
-fm_parent_channel_report "$FM_HOME" "$STATE" "$READY_LINE" || READY_RC=$?
-case "$READY_RC" in
-  0|1) ;;
-  *) printf 'actionable: PR %s is registered but its ready line did not reach the parent channel (rc=%s)\n' "$URL" "$READY_RC" >&2 ;;
-esac
+# The merge-time re-record publishes no ready line, as with the ledger above,
+# because bin/fm-pr-merge.sh can still refuse the merge after it.
+if [ "${FM_PR_CHECK_MERGE:-}" != 1 ]; then
+  READY_LINE="done [key=child-pr-$ID]: child $ID PR ready: $URL"
+  PR_MODE=$(grep '^mode=' "$META" | tail -1 | cut -d= -f2- || true)
+  PR_YOLO=$(grep '^yolo=' "$META" | tail -1 | cut -d= -f2- || true)
+  [ -z "$PR_MODE" ] || READY_LINE="$READY_LINE mode=$(fm_parent_channel_clean_note "$PR_MODE")"
+  [ -z "$PR_YOLO" ] || READY_LINE="$READY_LINE yolo=$(fm_parent_channel_clean_note "$PR_YOLO")"
+  READY_RC=0
+  fm_parent_channel_report "$FM_HOME" "$STATE" "$READY_LINE" || READY_RC=$?
+  case "$READY_RC" in
+    0|1) ;;
+    *) printf 'actionable: PR %s is registered but its ready line did not reach the parent channel (rc=%s)\n' "$URL" "$READY_RC" >&2 ;;
+  esac
+fi
 printf 'armed: state/%s.check.sh\n' "$ID"

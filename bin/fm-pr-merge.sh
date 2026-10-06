@@ -114,8 +114,10 @@
 # registration still follows bin/fm-dod-lib.sh's contract. The merge-time
 # registration before the live reads skips that gate, because this later check
 # is authoritative, so a publication refusal leaves pr= recorded and the merge
-# poll armed as a failed live verification does. tests/fm-pr-check-security.test.sh
-# and tests/fm-pr-merge.test.sh cover these merge-time publication guards.
+# poll armed as a failed live verification does. That re-record sends no
+# PR-ready line to a parent channel, so a refused merge never reports the PR
+# ready. tests/fm-pr-check-security.test.sh and tests/fm-pr-merge.test.sh cover
+# these merge-time publication guards.
 #
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or

@@ -2154,10 +2154,10 @@ test_secondmate_merge_reports_upward_once() {
     "secondmate-merge-reports: the landed PR was not reported upward"
   [ "$(grep -c 'merged-task-x1' "$replies")" -eq 1 ] \
     || fail "secondmate-merge-reports: one merge produced more than one upward merge line"
-  # The merge path registers the PR first, and that registration publishes the
-  # child's ready line on the same channel from fm-pr-check itself.
-  assert_grep "done [key=child-pr-task-x1]: child task-x1 PR ready: $url" <(sed -E 's/ \[at=[0-9]+\]//' "$replies") \
-    "secondmate-merge-reports: the registration's ready line was not reported upward"
+  # The merge path registers the PR first, but that merge-time re-record
+  # publishes no ready line, because the merge could still have been refused.
+  assert_no_grep "child-pr-task-x1" "$replies" \
+    "secondmate-merge-reports: the merge-time re-record reported the PR ready upward"
 
   # The same merge again: the forge accepts it in this fixture, so only the
   # at-most-once contract can keep the parent from being told twice.
@@ -2165,7 +2165,7 @@ test_secondmate_merge_reports_upward_once() {
     >"$case_dir/stdout2" 2>"$case_dir/stderr2" || fail "secondmate-merge-reports: repeat merge failed"
   [ "$(grep -c 'merged-task-x1' "$replies")" -eq 1 ] \
     || fail "secondmate-merge-reports: a repeat merge of the same PR duplicated the upward line"
-  [ "$(parent_reply_lines "$replies" "$url")" -eq 2 ] \
+  [ "$(parent_reply_lines "$replies" "$url")" -eq 1 ] \
     || fail "secondmate-merge-reports: a repeat merge changed the upward lines: $(cat "$replies")"
   pass "a merge a secondmate home performs itself is reported upward exactly once"
 }
@@ -2223,8 +2223,11 @@ test_gitlab_refusal_reports_nothing() {
   set -e
 
   expect_code 1 "$rc" "gitlab-refusal-silent: a refused GitLab merge should exit non-zero"
-  # Registration succeeds before the later GitLab pre-merge refusal, so the
-  # PR-ready fact is expected; only a merged outcome would be false.
+  # Registration succeeds before the later GitLab pre-merge refusal, but the
+  # merge-time re-record reports no PR-ready fact, and a merged outcome would
+  # be false.
+  assert_no_grep 'child-pr-task-x1' "$case_dir/state/parent-replies.status" \
+    "gitlab-refusal-silent: a refused merge request was reported ready"
   assert_no_grep 'merged-task-x1' "$case_dir/state/parent-replies.status" \
     "gitlab-refusal-silent: a refused merge request was reported as landed"
   pass "a GitLab merge refused before the forge call reports no outcome"
