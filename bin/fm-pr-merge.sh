@@ -111,10 +111,11 @@
 # without switching branches or moving local or remote-tracking refs, and
 # failure to prove containment refuses. If the branch is absent from the copy,
 # fm_dod_accept_ship_done gates the copy's HEAD instead. Ordinary PR-ready
-# registration still follows bin/fm-dod-lib.sh's contract; merge-time
-# registration follows this check, so a refusal cannot record readiness or arm
-# a new merge poll. tests/fm-pr-check-security.test.sh and
-# tests/fm-pr-merge.test.sh cover these merge-time publication guards.
+# registration still follows bin/fm-dod-lib.sh's contract. The merge-time
+# registration before the live reads skips that gate, because this later check
+# is authoritative, so a publication refusal leaves pr= recorded and the merge
+# poll armed as a failed live verification does. tests/fm-pr-check-security.test.sh
+# and tests/fm-pr-merge.test.sh cover these merge-time publication guards.
 #
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or
@@ -1380,14 +1381,14 @@ gitlab_confirm_merged() {
   [ "$state" = merged ]
 }
 
-# Each forge path records right before its merge call, after the publication
-# check. This arms the merge poll without claiming a landed outcome, so even a
-# provider read failure after a real merge cannot leave teardown without the PR
-# identity it needs to verify the result.
+# Record before either forge call. This arms the merge poll without claiming a
+# landed outcome, so even a provider read failure after a real merge cannot
+# leave teardown without the PR identity it needs to verify the result.
 away_status=0
 require_current_away_authority || away_status=$?
 [ "$away_status" -eq 0 ] || exit "$away_status"
 require_recorded_pr_identity || exit 1
+record_pr_metadata || exit 1
 require_released_captain_hold || exit 1
 
 # Accepted confused-agent-grade limitation, as in bin/fm-lease-lib.sh, not an
@@ -1439,7 +1440,6 @@ case "$PROVIDER" in
     [ "$away_status" -eq 0 ] || exit "$away_status"
     refuse_github_queue_while_away || exit 2
     require_pr_branch_published || exit 1
-    record_pr_metadata || exit 1
     merge_status=0
     merge_output=$(gh pr merge "$PR_NUMBER" --repo "$PR_OWNER/$PR_REPO" \
       --match-head-commit "$FM_PR_MERGE_HEAD" \
@@ -1495,7 +1495,6 @@ case "$PROVIDER" in
     require_current_away_authority || away_status=$?
     [ "$away_status" -eq 0 ] || exit "$away_status"
     require_pr_branch_published || exit 1
-    record_pr_metadata || exit 1
     merge_status=0
     gitlab_merge_args=()
     if [ "$FM_PR_AWAY_POSTURE" = true ]; then

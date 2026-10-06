@@ -1849,8 +1849,8 @@ test_gitlab_merge_failure_propagates() {
 
 # Each pre-merge condition, driven one at a time, so no condition can be
 # carried by another. The refusal names that condition, no merge is attempted,
-# and nothing is recorded or armed, as on the GitHub path, because registration
-# follows the live verification.
+# and pr= is still recorded and the poll still armed exactly as the GitHub path
+# leaves them when live verification or the gh merge fails.
 test_gitlab_each_condition_refuses_independently() {
   local case_dir rc name expected spec
   set -- \
@@ -1880,10 +1880,10 @@ test_gitlab_each_condition_refuses_independently() {
       "gitlab-refuse-$name: refusal did not name the failing condition"
     [ -z "$(glab_merge_line "$case_dir/glab.log")" ] \
       || fail "gitlab-refuse-$name: a merge was attempted despite the refusal"
-    assert_no_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
-      "gitlab-refuse-$name: a refused merge registered readiness"
-    assert_absent "$case_dir/state/task-x1.check.sh" \
-      "gitlab-refuse-$name: a refused merge armed a poll"
+    assert_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
+      "gitlab-refuse-$name: a refusal should still leave the recorded PR reference"
+    assert_present "$case_dir/state/task-x1.check.sh" \
+      "gitlab-refuse-$name: a refusal should still leave the merge poll armed"
   done
   pass "fm-pr-merge refuses on each GitLab pre-merge condition independently"
 }
@@ -1945,7 +1945,8 @@ test_gitlab_stale_recorded_head_is_reported() {
 # A direct-PR copy building stacked merge requests: part-1 is pushed and is the
 # verified head, while the copy's HEAD is on part-2, a later branch only in the
 # copy. The merge checks part-1's own source branch, so it lands; a part-1 fix
-# that was never pushed still refuses before anything is recorded.
+# that was never pushed still refuses the merge, leaving pr= recorded and the
+# poll armed as a failed live verification does.
 test_gitlab_direct_pr_merge_checks_the_source_branch() {
   local case_dir case_name rc part1 fix merge_line
   for case_name in pushed unpushed-fix; do
@@ -1982,8 +1983,10 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
       assert_grep "named head $fix could not be verified in pull request head $part1" "$case_dir/stderr" \
         "gitlab-stacked-$case_name: the refusal did not name part-1's unpushed fix"
       [ -z "$merge_line" ] || fail "gitlab-stacked-$case_name: a merge was attempted despite the refusal"
-      assert_no_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
-        "gitlab-stacked-$case_name: a refused merge registered readiness"
+      assert_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
+        "gitlab-stacked-$case_name: a publication refusal should still leave the recorded PR reference"
+      assert_present "$case_dir/state/task-x1.check.sh" \
+        "gitlab-stacked-$case_name: a publication refusal should still leave the merge poll armed"
     fi
   done
   pass "fm-pr-merge checks a GitLab direct-PR merge request's own source branch, not the copy's later HEAD"
@@ -2220,8 +2223,8 @@ test_gitlab_refusal_reports_nothing() {
   set -e
 
   expect_code 1 "$rc" "gitlab-refusal-silent: a refused GitLab merge should exit non-zero"
-  # The GitLab pre-merge refusal comes before registration, and a merged
-  # outcome would be false.
+  # Registration succeeds before the later GitLab pre-merge refusal, so the
+  # PR-ready fact is expected; only a merged outcome would be false.
   assert_no_grep 'merged-task-x1' "$case_dir/state/parent-replies.status" \
     "gitlab-refusal-silent: a refused merge request was reported as landed"
   pass "a GitLab merge refused before the forge call reports no outcome"
@@ -2670,7 +2673,7 @@ test_github_red_checks_refuse_and_allow_red_waives_named() {
 }
 
 # A draft cannot be merged, and neither can a pull request whose draft state the
-# forge did not report as a boolean; both refuse before registration or merging.
+# forge did not report as a boolean; both refuse before any merge call.
 test_github_draft_or_unreadable_draft_state_refuses() {
   local case_dir rc head label filter
   head=dddddddddddddddddddddddddddddddddddddddd
@@ -2697,10 +2700,8 @@ test_github_draft_or_unreadable_draft_state_refuses() {
       "github-$label: gh pr merge ran without a non-draft reading"
     assert_no_grep 'declare a wait instead of done' "$case_dir/stderr" \
       "github-$label: the arm-time draft refusal preempted the merge refusal"
-    assert_no_grep '^pr=' "$case_dir/state/task-x1.meta" \
-      "github-$label: a refused merge registered readiness"
-    assert_absent "$case_dir/state/task-x1.check.sh" \
-      "github-$label: a refused merge armed a poll"
+    grep -qxF 'pr=https://github.com/example/repo/pull/82' "$case_dir/state/task-x1.meta" \
+      || fail "github-$label: pr= was not recorded before the merge refusal"
   done
   pass "fm-pr-merge refuses a draft pull request and one with no boolean draft state"
 }

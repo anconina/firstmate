@@ -863,16 +863,17 @@ test_no_mistakes_merge_accepts_a_rebased_pipeline_head() {
   pass "fm-pr-merge merges a no-mistakes PR whose pipeline rebased the branch the copy still holds"
 }
 
-test_merge_publication_refusal_does_not_register_readiness() {
+# A publication refusal comes after the merge-time registration, so like a
+# failed live verification it leaves pr= recorded and the merge poll armed,
+# while no forge merge runs until the PR branch's fix is in the verified head.
+test_merge_publication_refusal_keeps_the_audit_trail() {
   local dir part1 fix
-  dir=$(make_case merge-refused-readiness)
+  dir=$(make_case merge-refused-audit-trail)
   make_stacked_copy "$dir"
-  seed_secondmate_home "$dir"
   part1=$(git -C "$dir/wt" rev-parse HEAD)
   fm_write_meta "$dir/home/state/task-a.meta" \
     "window=firstmate:fm-task-a" "endpoint_task_id=task-a" "worktree=$dir/wt" \
     "project=$dir/project" "kind=ship" "mode=direct-PR"
-  cp "$dir/home/state/task-a.meta" "$dir/meta.before"
   git -C "$dir/wt" commit -q --allow-empty -m 'PR fix, only in the copy'
   fix=$(git -C "$dir/wt" rev-parse HEAD)
 
@@ -880,22 +881,23 @@ test_merge_publication_refusal_does_not_register_readiness() {
     > "$dir/stdout" 2> "$dir/stderr" && fail "merged without the unpublished PR fix"
   grep -Fq "named head $fix could not be verified in pull request head $part1" "$dir/stderr" \
     || fail "did not refuse the unpublished PR fix: $(cat "$dir/stderr")"
-  cmp -s "$dir/meta.before" "$dir/home/state/task-a.meta" \
-    || fail "publication refusal still registered PR metadata"
-  assert_poll_absent "$dir/home/state" task-a
-  [ ! -e "$dir/home/state/parent-replies.status" ] \
-    || fail "publication refusal still reported the child PR ready"
   ! grep -q '^pr merge' "$dir/gh.log" || fail "refused PR still reached the forge merge"
+  grep -qxF 'pr=https://github.com/o/r/pull/4' "$dir/home/state/task-a.meta" \
+    || fail "publication refusal did not leave the recorded PR reference"
+  grep -qxF "pr_head=$part1" "$dir/home/state/task-a.meta" \
+    || fail "publication refusal did not record the forge's head"
+  [ -f "$dir/home/state/task-a.check.sh" ] || fail "publication refusal did not leave the merge poll armed"
 
+  : > "$dir/gh.log"
   FM_TEST_GH_HEAD=$fix FM_TEST_GH_HEAD_REF=part-1 run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
     > "$dir/stdout" 2> "$dir/stderr" || fail "refused the now-published PR fix: $(cat "$dir/stderr")"
-  grep -Fq 'child task-a PR ready: https://github.com/o/r/pull/4' "$dir/home/state/parent-replies.status" \
-    || fail "did not report readiness after publication was verified"
-  pass "fm-pr-merge refuses unpublished PR fixes before registering readiness"
+  grep -qxF "pr merge 4 --repo o/r --match-head-commit $fix --squash" "$dir/gh.log" \
+    || fail "published PR fix was not merged at its verified head"
+  pass "fm-pr-merge refuses an unpublished PR fix after registration, leaving the audit trail and the watch"
 }
 
 test_merge_checks_branch_against_final_verified_head() {
-  local dir retries part1 older unknown_once poll_before
+  local dir retries part1 older unknown_once
   for retries in 0 1; do
     dir=$(make_case "stacked-merge-verified-head-$retries")
     make_stacked_copy "$dir"
@@ -906,22 +908,16 @@ test_merge_checks_branch_against_final_verified_head() {
       > "$dir/stdout" 2> "$dir/stderr" || fail "could not register the newer published head"
     grep -qxF "pr_head=$part1" "$dir/home/state/task-a.meta" \
       || fail "registration did not record the newer head"
-    poll_before=$(poll_artifact_snapshot "$dir/home/state" task-a)
     : > "$dir/gh.log"
     git -C "$dir/wt" checkout -q -b part-2
     git -C "$dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
     unknown_once=
     [ "$retries" -eq 0 ] || unknown_once="$dir/unknown-once"
-    cp "$dir/home/state/task-a.meta" "$dir/meta.before"
 
     FM_TEST_GH_HEAD=$part1 FM_TEST_GH_MERGE_HEAD=$older FM_TEST_GH_HEAD_REF=part-1 \
       FM_TEST_GH_UNKNOWN_ONCE=$unknown_once FM_PR_GITHUB_MERGEABLE_RETRY_DELAY=0 \
       run_merge_entry "$dir" task-a https://github.com/o/r/pull/4 \
       > "$dir/stdout" 2> "$dir/stderr" && fail "merged an older head missing the local PR branch tip"
-    cmp -s "$dir/meta.before" "$dir/home/state/task-a.meta" \
-      || fail "registered readiness before refusing the older head"
-    [ "$(poll_artifact_snapshot "$dir/home/state" task-a)" = "$poll_before" ] \
-      || fail "rearmed the poll before refusing the older head"
     [ "$(grep -c '^pr view .*statusCheckRollup' "$dir/gh.log")" -eq "$((retries + 1))" ] \
       || fail "did not complete the expected mergeability reads"
     grep -Fq "named head $part1 could not be verified in pull request head $older" "$dir/stderr" \
@@ -3776,7 +3772,7 @@ test_direct_pr_unpushed_commit_refuses_registration
 test_merge_of_pushed_stacked_pr_ignores_later_branch
 test_merge_fetches_missing_forge_head_for_ancestry
 test_no_mistakes_merge_accepts_a_rebased_pipeline_head
-test_merge_publication_refusal_does_not_register_readiness
+test_merge_publication_refusal_keeps_the_audit_trail
 test_merge_checks_branch_against_final_verified_head
 test_merge_refuses_unpushed_commit_on_stacked_pr_branch
 test_merge_refuses_unpushed_pr_branch_with_pushed_head

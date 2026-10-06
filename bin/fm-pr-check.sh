@@ -13,8 +13,9 @@
 # Mark the pull request ready for review, then arm again; a lane that keeps a
 # draft on purpose declares a wait instead of reporting done. An unreadable
 # draft state does not refuse, matching how the head read below is optional.
-# bin/fm-pr-merge.sh records through this script with FM_PR_CHECK_MERGE=1 after
-# the draft and named-head checks owned by its header.
+# bin/fm-pr-merge.sh records through this script with FM_PR_CHECK_MERGE=1 and
+# skips this refusal and the named-head gate below, because its own merge-time
+# draft and named-head checks are authoritative.
 # Usage: fm-pr-check.sh <task-id> <pr-url>
 set -eu
 
