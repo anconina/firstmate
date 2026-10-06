@@ -37,23 +37,7 @@
 # source fails, so known missing checks and all read errors are reported together.
 # github_branch_rules_unavailable_on_plan owns the narrow plan-unavailable
 # exception; every other unreadable required source refuses.
-# These live forge checks report every failing condition, not just the first.
-# Before merging, the forge's headRefName must also be readable and valid.
-# If that branch exists in the worker copy, its tip must equal or be an ancestor
-# of the head selected by github_verify_mergeable after any retries. A later
-# unpushed HEAD on another local branch does not block this merge, but commits
-# on the PR branch missing from that verified head do, even when another remote
-# branch contains them. This applies in both direct-PR and no-mistakes mode.
-# bin/fm-dod-lib.sh's fm_dod_pr_branch_pushed fetches a missing verified head
-# from origin, using the upstream PR ref if a raw-SHA fetch is refused, without
-# switching branches or moving local or remote-tracking refs. The ancestry
-# check still uses the verified head; failure to prove containment refuses.
-# If the local PR branch is absent, direct-PR falls back to
-# fm_dod_accept_ship_done; no-mistakes keeps the verified forge head as its named
-# head. Ordinary PR-ready registration still follows bin/fm-dod-lib.sh's contract.
-# GitHub merge-time registration follows the publication check, so a refusal
-# cannot record readiness or arm a new merge poll.
-# tests/fm-pr-check-security.test.sh covers these merge-time publication guards.
+# Every failing condition is reported, not just the first.
 # The verified head is then passed to gh as
 # --match-head-commit, so a push that lands between that read and the merge
 # fails the merge instead of landing commits nothing verified. Reading that
@@ -111,6 +95,26 @@
 # reported rather than trusted, because a rebase moves the head and leaves the
 # recorded value stale. Reading that state needs glab and jq, and either one
 # absent stops the merge before any state is recorded.
+#
+# Right before either forge merge, require_pr_branch_published checks the
+# task's named head against the head verified above, after any retries. In
+# no-mistakes mode that verified head is the named head, as bin/fm-dod-lib.sh's
+# fm_dod_forge_head_is_named_head owns: the pipeline pushes from its own
+# checkout and may rebase the branch, so the worker copy's branch can be stale.
+# In direct-PR mode the forge's head branch, GitHub's headRefName or GitLab's
+# source_branch from the verified view, must be readable and valid. If that
+# branch exists in the worker copy, its tip must equal or be an ancestor of the
+# verified head. A later unpushed HEAD on another local branch does not block
+# the merge, but commits on the PR branch missing from that head do, even when
+# another remote branch contains them. bin/fm-dod-lib.sh's
+# fm_dod_pr_branch_pushed fetches a missing verified head from origin by SHA
+# without switching branches or moving local or remote-tracking refs, and
+# failure to prove containment refuses. If the branch is absent from the copy,
+# fm_dod_accept_ship_done gates the copy's HEAD instead. Ordinary PR-ready
+# registration still follows bin/fm-dod-lib.sh's contract; merge-time
+# registration follows this check, so a refusal cannot record readiness or arm
+# a new merge poll. tests/fm-pr-check-security.test.sh and
+# tests/fm-pr-merge.test.sh cover these merge-time publication guards.
 #
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or
@@ -466,15 +470,17 @@ if [ "$PROVIDER" = gitlab ]; then
 fi
 
 # Pre-merge conditions for a GitLab merge request, read from one live view of
-# the merge request. Sets FM_PR_MERGE_HEAD to the verified head on success and
-# returns non-zero after reporting every condition that failed.
+# the merge request. Sets FM_PR_MERGE_HEAD to the verified head and
+# FM_PR_MERGE_BRANCH to its source branch on success, and returns non-zero after
+# reporting every condition that failed.
 FM_PR_MERGE_HEAD=
+FM_PR_MERGE_BRANCH=
 FM_PR_GITLAB_ASYNC_CONFIGURED=false
 gitlab_verify_mergeable() {
   local json fields line
   local total=0 named=0 refusals=''
   local state='' detail='' conflicts='' discussions=''
-  local live_head='' pipeline_sha='' pipeline_status='' async_configured=''
+  local live_head='' source_branch='' pipeline_sha='' pipeline_status='' async_configured=''
 
   # GITLAB_HOST is set to the same host the project URL already carries, so the
   # instance is taken from the parsed URL by both signals and never from the
@@ -495,6 +501,7 @@ gitlab_verify_mergeable() {
         "conflicts=" + (.has_conflicts | tostring),
         "discussions=" + (.blocking_discussions_resolved | tostring),
         "head=" + ((.sha // "") | tostring),
+        "branch=" + ((.source_branch // "") | tostring),
         "pipeline_sha=" + ((.head_pipeline.sha // "") | tostring),
         "pipeline_status=" + ((.head_pipeline.status // "") | tostring),
         "async_configured=" + (if .merge_when_pipeline_succeeds == true or (.merge_after != null) then "true" else "false" end)
@@ -512,6 +519,7 @@ gitlab_verify_mergeable() {
       conflicts=*) conflicts=${line#conflicts=} ;;
       discussions=*) discussions=${line#discussions=} ;;
       head=*) live_head=${line#head=} ;;
+      branch=*) source_branch=${line#branch=} ;;
       pipeline_sha=*) pipeline_sha=${line#pipeline_sha=} ;;
       pipeline_status=*) pipeline_status=${line#pipeline_status=} ;;
       async_configured=*) async_configured=${line#async_configured=} ;;
@@ -524,7 +532,7 @@ FIELDS
   # Every field named exactly once and no unnamed line: a value carrying a
   # newline would split into a line no name matches, so it is refused here
   # rather than silently truncated into a value a check could accept.
-  if [ "$named" -ne 8 ] || [ "$total" -ne 8 ]; then
+  if [ "$named" -ne 9 ] || [ "$total" -ne 9 ]; then
     echo "error: could not read the GitLab merge request state before merging" >&2
     return 1
   fi
@@ -567,6 +575,7 @@ FIELDS
   printf 'verified: %s is open and mergeable, with a successful pipeline at head %s\n' \
     "$URL" "$live_head" >&2
   FM_PR_MERGE_HEAD=$live_head
+  FM_PR_MERGE_BRANCH=$source_branch
   FM_PR_GITLAB_ASYNC_CONFIGURED=$async_configured
 }
 
@@ -1090,6 +1099,33 @@ record_pr_metadata() {
   }
 }
 
+# The merge-time publication check this file's header owns, against
+# FM_PR_MERGE_HEAD. Returns non-zero after reporting why it refused.
+require_pr_branch_published() {
+  local mode wt branch kind tip reason
+  mode=$(fm_dod_meta_value "$META" mode)
+  fm_dod_forge_head_is_named_head "$mode" && return 0
+  wt=$(fm_dod_meta_value "$META" worktree)
+  case "$PROVIDER" in
+    github) branch=$(cd "$wt" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) || branch= ;;
+    *) branch=$FM_PR_MERGE_BRANCH ;;
+  esac
+  if ! git check-ref-format --branch "$branch" >/dev/null 2>&1; then
+    echo "error: pull request head branch could not be verified" >&2
+    return 1
+  fi
+  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
+    fm_dod_pr_branch_pushed "$wt" "$branch" "$FM_PR_MERGE_HEAD" && return 0
+    echo "error: named head $tip could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
+    return 1
+  fi
+  kind=$(fm_dod_meta_value "$META" kind)
+  reason=$(fm_dod_accept_ship_done "${kind:-ship}" "$mode" "$wt" "$(fm_dod_meta_value "$META" project)" \
+    "done: PR $URL" "$STATE" "$ID" "$META") && return 0
+  echo "error: $reason" >&2
+  return 1
+}
+
 require_released_captain_hold() {
   local hold_status=0
   FM_HOME="$FM_HOME" FM_STATE_OVERRIDE="$STATE" \
@@ -1344,16 +1380,14 @@ gitlab_confirm_merged() {
   [ "$state" = merged ]
 }
 
-# Record before either forge merge call. This arms the merge poll without claiming a
-# landed outcome, so even a provider read failure after a real merge cannot
-# leave teardown without the PR identity it needs to verify the result.
+# Each forge path records right before its merge call, after the publication
+# check. This arms the merge poll without claiming a landed outcome, so even a
+# provider read failure after a real merge cannot leave teardown without the PR
+# identity it needs to verify the result.
 away_status=0
 require_current_away_authority || away_status=$?
 [ "$away_status" -eq 0 ] || exit "$away_status"
 require_recorded_pr_identity || exit 1
-if [ "$PROVIDER" != github ]; then
-  record_pr_metadata || exit 1
-fi
 require_released_captain_hold || exit 1
 
 # Accepted confused-agent-grade limitation, as in bin/fm-lease-lib.sh, not an
@@ -1404,28 +1438,7 @@ case "$PROVIDER" in
     require_current_away_authority || away_status=$?
     [ "$away_status" -eq 0 ] || exit "$away_status"
     refuse_github_queue_while_away || exit 2
-    WT=$(fm_dod_meta_value "$META" worktree)
-    if ! PR_BRANCH=$(cd "$WT" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) \
-      || ! git check-ref-format --branch "$PR_BRANCH" >/dev/null 2>&1; then
-      echo "error: pull request head branch could not be verified" >&2
-      exit 1
-    fi
-    if PR_BRANCH_TIP=$(git -C "$WT" rev-parse --verify --quiet "refs/heads/$PR_BRANCH^{commit}" 2>/dev/null); then
-      if ! fm_dod_pr_branch_pushed "$WT" "$PR_BRANCH" "$FM_PR_MERGE_HEAD" "$PR_NUMBER"; then
-        echo "error: named head $PR_BRANCH_TIP could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
-        exit 1
-      fi
-    else
-      MODE=$(fm_dod_meta_value "$META" mode)
-      if ! fm_dod_forge_head_is_named_head "$MODE"; then
-        KIND=$(fm_dod_meta_value "$META" kind)
-        PROJECT=$(fm_dod_meta_value "$META" project)
-        if ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "done: PR $URL" "$STATE" "$ID" "$META"); then
-          echo "error: $GATE_REASON" >&2
-          exit 1
-        fi
-      fi
-    fi
+    require_pr_branch_published || exit 1
     record_pr_metadata || exit 1
     merge_status=0
     merge_output=$(gh pr merge "$PR_NUMBER" --repo "$PR_OWNER/$PR_REPO" \
@@ -1481,6 +1494,8 @@ case "$PROVIDER" in
     away_status=0
     require_current_away_authority || away_status=$?
     [ "$away_status" -eq 0 ] || exit "$away_status"
+    require_pr_branch_published || exit 1
+    record_pr_metadata || exit 1
     merge_status=0
     gitlab_merge_args=()
     if [ "$FM_PR_AWAY_POSTURE" = true ]; then

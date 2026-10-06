@@ -376,7 +376,7 @@ SH
 write_mr_json() {
   local file=$1 kv key value
   local state=opened detail=mergeable conflicts=false discussions=true
-  local head=$MR_HEAD pipeline_sha=$MR_HEAD pipeline_status=success pipeline=present
+  local head=$MR_HEAD branch=fm/task-x1 pipeline_sha=$MR_HEAD pipeline_status=success pipeline=present
   local merge_when_pipeline_succeeds=false merge_after=null
   shift
   for kv in "$@"; do
@@ -388,6 +388,7 @@ write_mr_json() {
       conflicts) conflicts=$value ;;
       discussions) discussions=$value ;;
       head) head=$value ;;
+      branch) branch=$value ;;
       pipeline_sha) pipeline_sha=$value ;;
       pipeline_status) pipeline_status=$value ;;
       pipeline) pipeline=$value ;;
@@ -401,8 +402,8 @@ write_mr_json() {
   fi
   printf '{"iid":7,"state":"%s","detailed_merge_status":"%s","has_conflicts":%s,' \
     "$state" "$detail" "$conflicts" > "$file"
-  printf '"blocking_discussions_resolved":%s,"sha":"%s","head_pipeline":%s,' \
-    "$discussions" "$head" "$pipeline" >> "$file"
+  printf '"blocking_discussions_resolved":%s,"sha":"%s","source_branch":"%s","head_pipeline":%s,' \
+    "$discussions" "$head" "$branch" "$pipeline" >> "$file"
   printf '"merge_when_pipeline_succeeds":%s,"merge_after":%s}\n' \
     "$merge_when_pipeline_succeeds" "$merge_after" >> "$file"
 }
@@ -1848,8 +1849,8 @@ test_gitlab_merge_failure_propagates() {
 
 # Each pre-merge condition, driven one at a time, so no condition can be
 # carried by another. The refusal names that condition, no merge is attempted,
-# and pr= is still recorded and the poll still armed exactly as the GitHub path
-# leaves them when live verification or the gh merge fails.
+# and nothing is recorded or armed, as on the GitHub path, because registration
+# follows the live verification.
 test_gitlab_each_condition_refuses_independently() {
   local case_dir rc name expected spec
   set -- \
@@ -1879,10 +1880,10 @@ test_gitlab_each_condition_refuses_independently() {
       "gitlab-refuse-$name: refusal did not name the failing condition"
     [ -z "$(glab_merge_line "$case_dir/glab.log")" ] \
       || fail "gitlab-refuse-$name: a merge was attempted despite the refusal"
-    assert_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
-      "gitlab-refuse-$name: a refusal should still leave the recorded PR reference"
-    assert_present "$case_dir/state/task-x1.check.sh" \
-      "gitlab-refuse-$name: a refusal should still leave the merge poll armed"
+    assert_no_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
+      "gitlab-refuse-$name: a refused merge registered readiness"
+    assert_absent "$case_dir/state/task-x1.check.sh" \
+      "gitlab-refuse-$name: a refused merge armed a poll"
   done
   pass "fm-pr-merge refuses on each GitLab pre-merge condition independently"
 }
@@ -1939,6 +1940,53 @@ test_gitlab_stale_recorded_head_is_reported() {
   assert_no_grep "pr_head=$MR_STALE_HEAD" "$case_dir/state/task-x1.meta" \
     "gitlab-stale-head: the recording step no longer drops an unresolvable GitLab head"
   pass "fm-pr-merge reports a stale recorded head and verifies the live one"
+}
+
+# A direct-PR copy building stacked merge requests: part-1 is pushed and is the
+# verified head, while the copy's HEAD is on part-2, a later branch only in the
+# copy. The merge checks part-1's own source branch, so it lands; a part-1 fix
+# that was never pushed still refuses before anything is recorded.
+test_gitlab_direct_pr_merge_checks_the_source_branch() {
+  local case_dir case_name rc part1 fix merge_line
+  for case_name in pushed unpushed-fix; do
+    case_dir=$(make_gitlab_case "gitlab-stacked-$case_name")
+    printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
+    git -C "$case_dir/wt" checkout -q -b part-1
+    git -C "$case_dir/wt" commit -q --allow-empty -m 'part 1'
+    part1=$(git -C "$case_dir/wt" rev-parse HEAD)
+    git -C "$case_dir/wt" update-ref refs/remotes/origin/part-1 "$part1"
+    fix=
+    if [ "$case_name" = unpushed-fix ]; then
+      git -C "$case_dir/wt" commit -q --allow-empty -m 'part 1 fix, only in the copy'
+      fix=$(git -C "$case_dir/wt" rev-parse HEAD)
+    fi
+    git -C "$case_dir/wt" checkout -q -b part-2
+    git -C "$case_dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
+    write_mr_json "$case_dir/mr.json" "head=$part1" "pipeline_sha=$part1" branch=part-1
+
+    set +e
+    run_pr_merge "$case_dir" task-x1 "$MR_URL" \
+      > "$case_dir/stdout" 2> "$case_dir/stderr"
+    rc=$?
+    set -e
+
+    merge_line=$(glab_merge_line "$case_dir/glab.log")
+    if [ -z "$fix" ]; then
+      expect_code 0 "$rc" "gitlab-stacked-$case_name: a pushed part-1 was refused for a later unpushed branch"
+      [ "$merge_line" = "GITLAB_HOST=$MR_HOST mr merge 7 -R $MR_PROJECT_URL --sha $part1 --yes" ] \
+        || fail "gitlab-stacked-$case_name: the merge was not bound to part-1's verified head: '$merge_line'"
+      assert_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
+        "gitlab-stacked-$case_name: pr= was not recorded before merging"
+    else
+      expect_code 1 "$rc" "gitlab-stacked-$case_name: part-1 merged without its unpushed fix"
+      assert_grep "named head $fix could not be verified in pull request head $part1" "$case_dir/stderr" \
+        "gitlab-stacked-$case_name: the refusal did not name part-1's unpushed fix"
+      [ -z "$merge_line" ] || fail "gitlab-stacked-$case_name: a merge was attempted despite the refusal"
+      assert_no_grep "pr=$MR_URL" "$case_dir/state/task-x1.meta" \
+        "gitlab-stacked-$case_name: a refused merge registered readiness"
+    fi
+  done
+  pass "fm-pr-merge checks a GitLab direct-PR merge request's own source branch, not the copy's later HEAD"
 }
 
 test_gitlab_unreadable_state_refuses() {
@@ -2172,8 +2220,8 @@ test_gitlab_refusal_reports_nothing() {
   set -e
 
   expect_code 1 "$rc" "gitlab-refusal-silent: a refused GitLab merge should exit non-zero"
-  # Registration succeeds before the later GitLab pre-merge refusal, so the
-  # PR-ready fact is expected; only a merged outcome would be false.
+  # The GitLab pre-merge refusal comes before registration, and a merged
+  # outcome would be false.
   assert_no_grep 'merged-task-x1' "$case_dir/state/parent-replies.status" \
     "gitlab-refusal-silent: a refused merge request was reported as landed"
   pass "a GitLab merge refused before the forge call reports no outcome"
@@ -2413,6 +2461,7 @@ test_gitlab_merge_failure_propagates
 test_gitlab_each_condition_refuses_independently
 test_gitlab_reports_every_failing_condition
 test_gitlab_stale_recorded_head_is_reported
+test_gitlab_direct_pr_merge_checks_the_source_branch
 test_gitlab_unreadable_state_refuses
 test_gitlab_invalid_head_refuses
 test_gitlab_missing_tool_refuses_before_recording

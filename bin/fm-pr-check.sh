@@ -14,7 +14,7 @@
 # draft on purpose declares a wait instead of reporting done. An unreadable
 # draft state does not refuse, matching how the head read below is optional.
 # bin/fm-pr-merge.sh records through this script with FM_PR_CHECK_MERGE=1 after
-# the GitHub draft and named-head checks owned by its header.
+# the draft and named-head checks owned by its header.
 # Usage: fm-pr-check.sh <task-id> <pr-url>
 set -eu
 
@@ -140,7 +140,7 @@ case "$PROVIDER:$MODE" in
   *:no-mistakes|*:) DONE_LINE="done: PR $URL checks green" ;;
   *) DONE_LINE="done: PR $URL" ;;
 esac
-if { [ "${FM_PR_CHECK_MERGE:-}" != 1 ] || [ "$PROVIDER" != github ]; } \
+if [ "${FM_PR_CHECK_MERGE:-}" != 1 ] \
   && { [ -z "$PR_HEAD" ] || ! fm_dod_forge_head_is_named_head "$MODE"; } \
   && ! GATE_REASON=$(fm_dod_accept_ship_done "${KIND:-ship}" "$MODE" "$WT" "$PROJECT" "$DONE_LINE" "$STATE" "$ID" "$META"); then
   echo "error: $GATE_REASON" >&2
