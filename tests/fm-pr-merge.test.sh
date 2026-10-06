@@ -1945,12 +1945,13 @@ test_gitlab_stale_recorded_head_is_reported() {
 
 # A direct-PR copy building stacked merge requests: part-1 is pushed and is the
 # verified head, while the copy's HEAD is on part-2, a later branch only in the
-# copy. The merge checks part-1's own source branch, so it lands; a part-1 fix
-# that was never pushed still refuses the merge, leaving pr= recorded and the
-# poll armed as a failed live verification does.
+# copy. The merge checks part-1's own source branch, so it lands, also when the
+# merge request comes from a fork; a part-1 fix that was never pushed still
+# refuses the merge, leaving pr= recorded and the poll armed as a failed live
+# verification does.
 test_gitlab_direct_pr_merge_checks_the_source_branch() {
-  local case_dir case_name rc part1 fix merge_line
-  for case_name in pushed unpushed-fix; do
+  local case_dir case_name rc part1 fix source_project merge_line
+  for case_name in pushed fork unpushed-fix; do
     case_dir=$(make_gitlab_case "gitlab-stacked-$case_name")
     printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
     git -C "$case_dir/wt" checkout -q -b part-1
@@ -1964,7 +1965,10 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
     fi
     git -C "$case_dir/wt" checkout -q -b part-2
     git -C "$case_dir/wt" commit -q --allow-empty -m 'part 2, only in the copy'
-    write_mr_json "$case_dir/mr.json" "head=$part1" "pipeline_sha=$part1" branch=part-1
+    source_project=1
+    [ "$case_name" = fork ] && source_project=2
+    write_mr_json "$case_dir/mr.json" "head=$part1" "pipeline_sha=$part1" branch=part-1 \
+      "source_project=$source_project"
 
     set +e
     run_pr_merge "$case_dir" task-x1 "$MR_URL" \
@@ -1991,43 +1995,6 @@ test_gitlab_direct_pr_merge_checks_the_source_branch() {
     fi
   done
   pass "fm-pr-merge checks a GitLab direct-PR merge request's own source branch, not the copy's later HEAD"
-}
-
-# A local branch that only shares the merge request's source-branch name. From a
-# fork that name belongs to another project, so the merge gates the copy's
-# pushed HEAD and lands; from the same project it is the source branch, and its
-# commit missing from the verified head still refuses.
-test_gitlab_fork_ignores_a_same_named_local_branch() {
-  local case_dir case_name rc unrelated merge_line
-  for case_name in fork same-project; do
-    case_dir=$(make_gitlab_case "gitlab-fork-$case_name")
-    printf 'mode=direct-PR\n' >> "$case_dir/state/task-x1.meta"
-    unrelated=$(git -C "$case_dir/wt" commit-tree -m 'unrelated, only in the copy' \
-      -p HEAD "$(git -C "$case_dir/wt" rev-parse 'HEAD^{tree}')")
-    git -C "$case_dir/wt" branch fm/task-x1 "$unrelated"
-    if [ "$case_name" = fork ]; then
-      write_mr_json "$case_dir/mr.json" source_project=2
-    fi
-
-    set +e
-    run_pr_merge "$case_dir" task-x1 "$MR_URL" \
-      > "$case_dir/stdout" 2> "$case_dir/stderr"
-    rc=$?
-    set -e
-
-    merge_line=$(glab_merge_line "$case_dir/glab.log")
-    if [ "$case_name" = fork ]; then
-      expect_code 0 "$rc" "gitlab-fork-$case_name: a fork merge request was refused for a same-named local branch"
-      [ "$merge_line" = "GITLAB_HOST=$MR_HOST mr merge 7 -R $MR_PROJECT_URL --sha $MR_HEAD --yes" ] \
-        || fail "gitlab-fork-$case_name: the merge was not bound to the verified head: '$merge_line'"
-    else
-      expect_code 1 "$rc" "gitlab-fork-$case_name: the source branch's missing commit did not refuse"
-      assert_grep "named head $unrelated could not be verified in pull request head $MR_HEAD" "$case_dir/stderr" \
-        "gitlab-fork-$case_name: the refusal did not name the source branch's missing commit"
-      [ -z "$merge_line" ] || fail "gitlab-fork-$case_name: a merge was attempted despite the refusal"
-    fi
-  done
-  pass "fm-pr-merge compares a local branch only with a same-project merge request's source branch"
 }
 
 test_gitlab_unreadable_state_refuses() {
@@ -2506,7 +2473,6 @@ test_gitlab_each_condition_refuses_independently
 test_gitlab_reports_every_failing_condition
 test_gitlab_stale_recorded_head_is_reported
 test_gitlab_direct_pr_merge_checks_the_source_branch
-test_gitlab_fork_ignores_a_same_named_local_branch
 test_gitlab_unreadable_state_refuses
 test_gitlab_invalid_head_refuses
 test_gitlab_missing_tool_refuses_before_recording

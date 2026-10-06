@@ -110,10 +110,8 @@
 # fm_dod_pr_branch_pushed fetches a missing verified head from origin by SHA
 # without switching branches or moving local or remote-tracking refs, and
 # failure to prove containment refuses. If the branch is absent from the copy,
-# or the GitLab merge request comes from a fork, whose source branch a
-# same-named branch in the copy is not, fm_dod_accept_ship_done gates the
-# copy's HEAD instead. Ordinary PR-ready registration still follows
-# bin/fm-dod-lib.sh's contract. The merge-time
+# fm_dod_accept_ship_done gates the copy's HEAD instead. Ordinary PR-ready
+# registration still follows bin/fm-dod-lib.sh's contract. The merge-time
 # registration before the live reads skips that gate, because this later check
 # is authoritative, so a publication refusal leaves pr= recorded and the merge
 # poll armed as a failed live verification does. That re-record sends no
@@ -475,19 +473,17 @@ if [ "$PROVIDER" = gitlab ]; then
 fi
 
 # Pre-merge conditions for a GitLab merge request, read from one live view of
-# the merge request. Sets FM_PR_MERGE_HEAD to the verified head,
-# FM_PR_MERGE_BRANCH to its source branch, and FM_PR_MERGE_FORK to whether that
-# branch lives in another project on success, and returns non-zero after
+# the merge request. Sets FM_PR_MERGE_HEAD to the verified head and
+# FM_PR_MERGE_BRANCH to its source branch on success, and returns non-zero after
 # reporting every condition that failed.
 FM_PR_MERGE_HEAD=
 FM_PR_MERGE_BRANCH=
-FM_PR_MERGE_FORK=false
 FM_PR_GITLAB_ASYNC_CONFIGURED=false
 gitlab_verify_mergeable() {
   local json fields line
   local total=0 named=0 refusals=''
   local state='' detail='' conflicts='' discussions=''
-  local live_head='' source_branch='' fork='' pipeline_sha='' pipeline_status='' async_configured=''
+  local live_head='' source_branch='' pipeline_sha='' pipeline_status='' async_configured=''
 
   # GITLAB_HOST is set to the same host the project URL already carries, so the
   # instance is taken from the parsed URL by both signals and never from the
@@ -509,7 +505,6 @@ gitlab_verify_mergeable() {
         "discussions=" + (.blocking_discussions_resolved | tostring),
         "head=" + ((.sha // "") | tostring),
         "branch=" + ((.source_branch // "") | tostring),
-        "fork=" + (.source_project_id != .target_project_id | tostring),
         "pipeline_sha=" + ((.head_pipeline.sha // "") | tostring),
         "pipeline_status=" + ((.head_pipeline.status // "") | tostring),
         "async_configured=" + (if .merge_when_pipeline_succeeds == true or (.merge_after != null) then "true" else "false" end)
@@ -528,7 +523,6 @@ gitlab_verify_mergeable() {
       discussions=*) discussions=${line#discussions=} ;;
       head=*) live_head=${line#head=} ;;
       branch=*) source_branch=${line#branch=} ;;
-      fork=*) fork=${line#fork=} ;;
       pipeline_sha=*) pipeline_sha=${line#pipeline_sha=} ;;
       pipeline_status=*) pipeline_status=${line#pipeline_status=} ;;
       async_configured=*) async_configured=${line#async_configured=} ;;
@@ -541,7 +535,7 @@ FIELDS
   # Every field named exactly once and no unnamed line: a value carrying a
   # newline would split into a line no name matches, so it is refused here
   # rather than silently truncated into a value a check could accept.
-  if [ "$named" -ne 10 ] || [ "$total" -ne 10 ]; then
+  if [ "$named" -ne 9 ] || [ "$total" -ne 9 ]; then
     echo "error: could not read the GitLab merge request state before merging" >&2
     return 1
   fi
@@ -585,7 +579,6 @@ FIELDS
     "$URL" "$live_head" >&2
   FM_PR_MERGE_HEAD=$live_head
   FM_PR_MERGE_BRANCH=$source_branch
-  FM_PR_MERGE_FORK=$fork
   FM_PR_GITLAB_ASYNC_CONFIGURED=$async_configured
 }
 
@@ -1124,8 +1117,7 @@ require_pr_branch_published() {
     echo "error: pull request head branch could not be verified" >&2
     return 1
   fi
-  if [ "$FM_PR_MERGE_FORK" != true ] \
-    && tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
+  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
     fm_dod_pr_branch_pushed "$wt" "$branch" "$FM_PR_MERGE_HEAD" && return 0
     echo "error: named head $tip could not be verified in pull request head $FM_PR_MERGE_HEAD" >&2
     return 1
