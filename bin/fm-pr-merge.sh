@@ -96,35 +96,36 @@
 # recorded value stale. Reading that state needs glab and jq, and either one
 # absent stops the merge before any state is recorded.
 #
-# Right before either forge merge, require_pr_branch_published checks the
-# task's named head against the head verified above, after any retries. In
-# no-mistakes mode that verified head is the named head, as bin/fm-dod-lib.sh's
+# Right before either forge merge, require_pr_branch_published checks the task's
+# named head against the head verified above, after any retries. In no-mistakes
+# mode that verified head is the named head, as bin/fm-dod-lib.sh's
 # fm_dod_forge_head_is_named_head owns: the pipeline pushes from its own
 # checkout and may rebase the branch, so the worker copy's branch can be stale.
-# In direct-PR mode the forge's head branch, GitHub's headRefName or GitLab's
-# source_branch from the verified view, must be readable and valid. A GitLab
-# merge request from a fork names a branch of that fork, so a local branch of
-# the same name is its source branch only when the local branch's upstream
-# remote URL is the source project's web or clone URL, read through glab api and
-# compared by lowercase host and path without a trailing slash or .git, so the
-# https, ssh:// and git@host:path forms match. Once that read succeeds, a local
-# branch of that name with any other upstream, or none, counts as absent; a
-# source project that cannot be read refuses the merge. If that branch exists
-# in the worker copy, its tip must equal or be an ancestor of the
-# verified head. A later unpushed HEAD on another local branch does not block
-# the merge, but commits on the PR branch missing from that head do, even when
-# another remote branch contains them. bin/fm-dod-lib.sh's
+# A task bin/fm-dod-lib.sh's fm_dod_should_gate_ship_done would not gate is not
+# checked either. Otherwise the forge's head branch, GitHub's headRefName read
+# by URL or GitLab's source_branch from the verified view, must be readable and
+# valid. A GitLab merge request from a fork names a branch of that fork, so a
+# local branch of the same name is its source branch only when the local
+# branch's upstream remote URL is the source project's web or clone URL, read
+# through glab api and compared by lowercase host and path without a trailing
+# slash or .git, so the https, ssh:// and git@host:path forms match. Once that
+# read succeeds, a local branch of that name with any other upstream, or none,
+# counts as absent; a source project that cannot be read refuses the merge. If
+# that branch exists in the worker copy, its tip must equal or be an ancestor of
+# the verified head. A later unpushed HEAD on another local branch does not
+# block the merge, but commits on the PR branch missing from that head do, even
+# when another remote branch contains them. bin/fm-dod-lib.sh's
 # fm_dod_pr_branch_pushed fetches a missing verified head from origin by SHA
 # without switching branches or moving local or remote-tracking refs, and
-# failure to prove containment refuses. If the branch is absent from the copy,
-# fm_dod_accept_ship_done gates the copy's HEAD instead. Ordinary PR-ready
-# registration still follows bin/fm-dod-lib.sh's contract. The merge-time
-# registration before the live reads skips that gate, because this later check
-# is authoritative, so a publication refusal leaves pr= recorded and the merge
-# poll armed as a failed live verification does. That re-record sends no
-# PR-ready line to a parent channel, so a refused merge never reports the PR
-# ready. tests/fm-pr-check-security.test.sh and tests/fm-pr-merge.test.sh cover
-# these merge-time publication guards.
+# failure to prove containment refuses. If the worker copy is missing or the
+# branch is absent from it, fm_dod_accept_ship_done gates the copy's HEAD
+# instead. Ordinary PR-ready registration still follows bin/fm-dod-lib.sh's
+# contract. The merge-time registration before the live reads skips that gate,
+# because this later check is authoritative, so a publication refusal leaves pr=
+# recorded and the merge poll armed as a failed live verification does. That
+# re-record sends no PR-ready line to a parent channel, so a refused merge never
+# reports the PR ready. tests/fm-pr-check-security.test.sh and
+# tests/fm-pr-merge.test.sh cover these merge-time publication guards.
 #
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or
@@ -1160,17 +1161,20 @@ EOF
 require_pr_branch_published() {
   local mode wt branch kind tip reason is_source=0
   mode=$(fm_dod_meta_value "$META" mode)
+  kind=$(fm_dod_meta_value "$META" kind)
   fm_dod_forge_head_is_named_head "$mode" && return 0
+  fm_dod_should_gate_ship_done "${kind:-ship}" "$mode" "done: PR $URL" || return 0
   wt=$(fm_dod_meta_value "$META" worktree)
   case "$PROVIDER" in
-    github) branch=$(cd "$wt" && gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) || branch= ;;
+    github) branch=$(gh pr view "$URL" --json headRefName -q .headRefName 2>/dev/null) || branch= ;;
     *) branch=$FM_PR_MERGE_BRANCH ;;
   esac
   if ! git check-ref-format --branch "$branch" >/dev/null 2>&1; then
     echo "error: pull request head branch could not be verified" >&2
     return 1
   fi
-  if tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
+  if [ -n "$wt" ] && [ -d "$wt" ] \
+    && tip=$(git -C "$wt" rev-parse --verify --quiet "refs/heads/$branch^{commit}" 2>/dev/null); then
     local_branch_is_pr_source "$wt" "$branch" || is_source=$?
     case "$is_source" in
       0)
@@ -1184,7 +1188,6 @@ require_pr_branch_published() {
         ;;
     esac
   fi
-  kind=$(fm_dod_meta_value "$META" kind)
   reason=$(fm_dod_accept_ship_done "${kind:-ship}" "$mode" "$wt" "$(fm_dod_meta_value "$META" project)" \
     "done: PR $URL" "$STATE" "$ID" "$META") && return 0
   echo "error: $reason" >&2

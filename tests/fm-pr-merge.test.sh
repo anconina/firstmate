@@ -590,6 +590,41 @@ test_merge_failure_propagates_after_recording() {
   pass "fm-pr-merge propagates a real merge failure without silently succeeding"
 }
 
+# The task's recorded worktree is gone. A no-mistakes merge still lands, since
+# the verified forge head is its named head, while a direct-PR merge still
+# refuses, since nothing outside the copy proves its named head.
+test_missing_worktree_merge_follows_the_mode() {
+  local case_dir mode rc
+  for mode in no-mistakes direct-PR; do
+    case_dir=$(make_case "missing-worktree-$mode")
+    rm -rf "$case_dir/wt"
+    printf 'mode=%s\n' "$mode" >> "$case_dir/state/task-x1.meta"
+    add_gh_mocks "$case_dir" 6363636363636363636363636363636363636363
+    : > "$case_dir/gh-axi.log"
+
+    set +e
+    run_pr_merge "$case_dir" task-x1 https://github.com/example/repo/pull/63 \
+      > "$case_dir/stdout" 2> "$case_dir/stderr"
+    rc=$?
+    set -e
+
+    case "$mode" in
+      no-mistakes)
+        expect_code 0 "$rc" "missing-worktree-$mode: the merge was refused for a gone worktree"
+        assert_logged_gh_merge "$case_dir" 63 example/repo --squash
+        ;;
+      direct-PR)
+        expect_code 1 "$rc" "missing-worktree-$mode: the merge landed without a provable named head"
+        assert_grep 'named head cannot be verified: worktree missing' "$case_dir/stderr" \
+          "missing-worktree-$mode: the refusal did not name the missing worktree"
+        assert_no_grep '^pr merge ' "$case_dir/gh.log" \
+          "missing-worktree-$mode: a merge was attempted despite the refusal"
+        ;;
+    esac
+  done
+  pass "fm-pr-merge merges a no-mistakes PR whose worktree is gone and refuses a direct-PR one"
+}
+
 test_github_merged_outcome_is_verified() {
   local case_dir rc
   case_dir=$(make_case github-verified-merged)
@@ -2527,6 +2562,7 @@ test_github_conflicting_queue_rules_report_ambiguity
 test_verified_merge_records_pr_and_head
 test_pr_metadata_is_recorded_before_the_forge_call
 test_merge_failure_propagates_after_recording
+test_missing_worktree_merge_follows_the_mode
 test_github_open_unqueued_outcome_refuses
 test_github_mergeable_unknown_retries_then_succeeds
 test_github_mergeable_unknown_exhausts_bound_and_reports_pending
