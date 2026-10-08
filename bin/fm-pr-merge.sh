@@ -41,10 +41,11 @@
 # The verified head is then passed to gh as
 # --match-head-commit, so a push that lands between that read and the merge
 # fails the merge instead of landing commits nothing verified. A caller that has
-# already verified a head of its own passes --expect-head <sha>, a full
-# 40-character lowercase hex commit SHA given once as a separate argument: on
-# either forge, refuse_unexpected_head below refuses before any forge merge call
-# when the live head differs, and a matching head is the one the merge binds to.
+# already verified a head of its own passes --expect-head <sha>, a full commit
+# SHA as fm_pr_head_valid accepts a live head, given once as a separate
+# argument: on either forge, refuse_unexpected_head below refuses before any
+# forge merge call when the live head differs, and a matching head is the one
+# the merge binds to.
 # Reading that state needs gh and jq, and either one absent stops the merge
 # before any state is recorded. An attended --allow-red <check-name> may be
 # passed once, with the name as a separate argument; it waives only checks with that exact
@@ -233,8 +234,8 @@ while [ "$#" -gt 0 ]; do
       ;;
     --expect-head)
       [ -z "$EXPECT_HEAD" ] || { echo "error: --expect-head may be specified only once" >&2; exit 2; }
-      [[ "${2:-}" =~ ^[0-9a-f]{40}$ ]] || {
-        echo "error: --expect-head requires a full 40-character lowercase hex commit SHA" >&2
+      fm_pr_head_valid "${2:-}" || {
+        echo "error: --expect-head requires a full commit SHA as the live head read accepts it" >&2
         exit 2
       }
       EXPECT_HEAD=$2

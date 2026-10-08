@@ -2106,6 +2106,26 @@ test_github_expect_head_mismatch_refuses_before_the_forge() {
   pass "fm-pr-merge --expect-head refuses a moved GitHub head before any forge merge call"
 }
 
+# A SHA-256 object-format head is as full as the live read accepts, so a caller
+# can name it too.
+test_github_expect_head_accepts_a_sha256_head() {
+  local case_dir rc head=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+  case_dir=$(make_case github-expect-head-sha256)
+  mkdir -p "$case_dir/wt"
+  add_gh_mocks "$case_dir" "$head"
+  : > "$case_dir/gh-axi.log"
+
+  set +e
+  run_pr_merge "$case_dir" task-x1 https://github.com/example/repo/pull/48 --expect-head "$head" \
+    > "$case_dir/stdout" 2> "$case_dir/stderr"
+  rc=$?
+  set -e
+
+  expect_code 0 "$rc" "github-expect-head-sha256: a matching 64-hex expected head should merge"
+  assert_logged_gh_merge "$case_dir" 48 example/repo --squash
+  pass "fm-pr-merge --expect-head merges a matching 64-hex GitHub head bound to that SHA"
+}
+
 test_gitlab_expect_head_matching_and_mismatch() {
   local case_dir rc merge_line
   case_dir=$(make_gitlab_case gitlab-expect-head-match)
@@ -2140,7 +2160,7 @@ test_gitlab_expect_head_matching_and_mismatch() {
 test_expect_head_rejects_malformed_values() {
   local case_dir rc value
   for value in abc123 EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE \
-    eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee \
+    EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE \
     gggggggggggggggggggggggggggggggggggggggg ''; do
     case_dir=$(make_case "expect-head-malformed-${#value}-${value:0:1}")
     mkdir -p "$case_dir/wt"
@@ -2152,7 +2172,7 @@ test_expect_head_rejects_malformed_values() {
     rc=$?
     set -e
     expect_code 2 "$rc" "expect-head-malformed: '$value' should be refused"
-    assert_grep '--expect-head requires a full 40-character lowercase hex commit SHA' "$case_dir/stderr" \
+    assert_grep '--expect-head requires a full commit SHA as the live head read accepts it' "$case_dir/stderr" \
       "expect-head-malformed: '$value' was not refused with the named error"
     assert_no_grep 'pr=' "$case_dir/state/task-x1.meta" \
       "expect-head-malformed: '$value' recorded the PR before refusing"
@@ -2183,7 +2203,7 @@ test_expect_head_rejects_malformed_values() {
   expect_code 2 "$rc" "expect-head-twice: a repeated option should be refused"
   assert_grep '--expect-head may be specified only once' "$case_dir/stderr" \
     "expect-head-twice: the repetition was not refused with the named error"
-  pass "fm-pr-merge --expect-head refuses anything but one full 40-hex SHA before recording state"
+  pass "fm-pr-merge --expect-head refuses anything but one full commit SHA before recording state"
 }
 
 # --- durable merge outcome ---------------------------------------------------
@@ -2533,6 +2553,7 @@ test_parses_pr_url_for_gh_axi
 test_github_still_forwards_sha_arg
 test_github_expect_head_matching_binds_the_merge
 test_github_expect_head_mismatch_refuses_before_the_forge
+test_github_expect_head_accepts_a_sha256_head
 test_gitlab_expect_head_matching_and_mismatch
 test_expect_head_rejects_malformed_values
 test_gitlab_url_resolves_and_merges
