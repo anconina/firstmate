@@ -40,15 +40,10 @@
 # Every failing condition is reported, not just the first.
 # The verified head is then passed to gh as
 # --match-head-commit, so a push that lands between that read and the merge
-# fails the merge instead of landing commits nothing verified. A caller that has
-# already verified a head of its own passes --expect-head <sha>, a full commit
-# SHA as fm_pr_head_valid accepts a live head, given once as a separate
-# argument: on either forge, refuse_unexpected_head below refuses before any
-# forge merge call when the live head differs, and a matching head is the one
-# the merge binds to.
-# Reading that state needs gh and jq, and either one absent stops the merge
-# before any state is recorded. An attended --allow-red <check-name> may be
-# passed once, with the name as a separate argument; it waives only checks with that exact
+# fails the merge instead of landing commits nothing verified. Reading that
+# state needs gh and jq, and either one absent stops the merge before any
+# state is recorded. An attended --allow-red <check-name> may be passed once,
+# with the name as a separate argument; it waives only checks with that exact
 # name, still requires every other check green, and still binds the head. Its
 # twin, an attended --allow-missing <check-name>, follows the same rules for one
 # required check that has not reported: it waives only that exact name, still
@@ -101,6 +96,12 @@
 # recorded value stale. Reading that state needs glab and jq, and either one
 # absent stops the merge before any state is recorded.
 #
+# A caller that has already verified a head of its own passes --expect-head
+# <sha> once, with <sha> a separate argument in the full commit SHA form
+# fm_pr_head_valid accepts for a live head. On either forge,
+# refuse_unexpected_head below refuses before any forge merge call when the
+# live head differs, and a matching head is the one the merge binds to.
+#
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or
 # unreadable row refuses before that command, so a captain approval must be
@@ -129,11 +130,11 @@
 # short-option cluster such as -yR, because the repository comes only from the
 # URL, nor --sha or --match-head-commit because the head comes only from the
 # live read or --expect-head. An existing task-meta pr= must equal the
-# requested canonical URL, unless that bound PR has already merged - proven by its recorded merge
-# notification - in which case the task's next PR is accepted so several PRs
-# from one task can each merge in turn; while the bound PR is still unmerged a
-# different URL is refused. Auto-merge (--auto), a protection bypass
-# (--admin), and branch
+# requested canonical URL, unless that bound PR has already merged - proven by
+# its recorded merge notification - in which case the task's next PR is
+# accepted so several PRs from one task can each merge in turn; while the bound
+# PR is still unmerged a different URL is refused. Auto-merge (--auto), a
+# protection bypass (--admin), and branch
 # deletion (--delete-branch, -d and short-flag clusters, and GitLab's
 # --remove-source-branch) are refused by default; --attended-override, parsed
 # before the optional -- separator, re-enables those forge flags for an
