@@ -40,10 +40,14 @@
 # Every failing condition is reported, not just the first.
 # The verified head is then passed to gh as
 # --match-head-commit, so a push that lands between that read and the merge
-# fails the merge instead of landing commits nothing verified. Reading that
-# state needs gh and jq, and either one absent stops the merge before any
-# state is recorded. An attended --allow-red <check-name> may be passed once,
-# with the name as a separate argument; it waives only checks with that exact
+# fails the merge instead of landing commits nothing verified. A caller that has
+# already verified a head of its own passes --expect-head <sha>, a full
+# 40-character lowercase hex commit SHA given once as a separate argument: on
+# either forge, refuse_unexpected_head below refuses before any forge merge call
+# when the live head differs, and a matching head is the one the merge binds to.
+# Reading that state needs gh and jq, and either one absent stops the merge
+# before any state is recorded. An attended --allow-red <check-name> may be
+# passed once, with the name as a separate argument; it waives only checks with that exact
 # name, still requires every other check green, and still binds the head. Its
 # twin, an attended --allow-missing <check-name>, follows the same rules for one
 # required check that has not reported: it waives only that exact name, still
@@ -123,8 +127,8 @@
 # Extra args must not include --repo or -R in any form, including a bundled
 # short-option cluster such as -yR, because the repository comes only from the
 # URL, nor --sha or --match-head-commit because the head comes only from the
-# live read. An existing task-meta pr= must equal the requested canonical URL,
-# unless that bound PR has already merged - proven by its recorded merge
+# live read or --expect-head. An existing task-meta pr= must equal the
+# requested canonical URL, unless that bound PR has already merged - proven by its recorded merge
 # notification - in which case the task's next PR is accepted so several PRs
 # from one task can each merge in turn; while the bound PR is still unmerged a
 # different URL is refused. Auto-merge (--auto), a protection bypass
@@ -135,7 +139,7 @@
 # explicit captain instruction and never skips the live green check, the
 # away-record read, or a captain hold.
 #
-# Usage: fm-pr-merge.sh <task-id> <pr-url> [--attended-override] [--allow-red <check-name>] [--allow-missing <check-name>] [-- <extra forge merge args>]
+# Usage: fm-pr-merge.sh <task-id> <pr-url> [--attended-override] [--allow-red <check-name>] [--allow-missing <check-name>] [--expect-head <sha>] [-- <extra forge merge args>]
 #
 # On GitLab, this script confirms the MR is actually merged before reporting it;
 # an auto-merge-queued or unconfirmed request leaves the poll armed and records
@@ -196,6 +200,7 @@ shift 2
 ATTENDED_OVERRIDE=false
 ALLOW_RED=()
 ALLOW_MISSING=()
+EXPECT_HEAD=
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --attended-override)
@@ -224,6 +229,19 @@ while [ "$#" -gt 0 ]; do
       ;;
     --allow-missing=*)
       echo "error: --allow-missing requires a separate check name argument" >&2
+      exit 2
+      ;;
+    --expect-head)
+      [ -z "$EXPECT_HEAD" ] || { echo "error: --expect-head may be specified only once" >&2; exit 2; }
+      [[ "${2:-}" =~ ^[0-9a-f]{40}$ ]] || {
+        echo "error: --expect-head requires a full 40-character lowercase hex commit SHA" >&2
+        exit 2
+      }
+      EXPECT_HEAD=$2
+      shift 2
+      ;;
+    --expect-head=*)
+      echo "error: --expect-head requires a separate SHA argument" >&2
       exit 2
       ;;
     --) shift; break ;;
@@ -447,6 +465,19 @@ if [ "$PROVIDER" = gitlab ]; then
   RECORDED_HEAD=$(grep '^pr_head=' "$META" | tail -1 | cut -d= -f2- || true)
 fi
 
+# With --expect-head, the live head must be the one the caller already verified.
+# A newer head is refused outright rather than verified, because its own checks
+# may still be empty or skipped and so read green here. On a match the forge
+# call binds to the live head, which is then that same expected head.
+refuse_unexpected_head() {
+  local live_head=$1
+  [ -n "$EXPECT_HEAD" ] || return 0
+  [ "$live_head" = "$EXPECT_HEAD" ] && return 0
+  printf 'error: refusing to merge %s: the live head %s is not the expected head %s\n' \
+    "$URL" "$live_head" "$EXPECT_HEAD" >&2
+  return 1
+}
+
 # Pre-merge conditions for a GitLab merge request, read from one live view of
 # the merge request. Sets FM_PR_MERGE_HEAD to the verified head on success and
 # returns non-zero after reporting every condition that failed.
@@ -515,6 +546,7 @@ FIELDS
     echo "error: could not read the GitLab merge request head commit before merging" >&2
     return 1
   fi
+  refuse_unexpected_head "$live_head" || return 1
   # A rebase moves the head and leaves the recorded value behind, so the
   # disagreement is reported and the live head is what gets verified and merged.
   if [ -n "$RECORDED_HEAD" ] && [ "$RECORDED_HEAD" != "$live_head" ]; then
@@ -765,6 +797,7 @@ FIELDS
     echo "error: could not read the GitHub pull request head commit before merging" >&2
     return 1
   fi
+  refuse_unexpected_head "$live_head" || return 1
   if ! red=$(github_checks_not_green "$json"); then
     echo "error: could not read the GitHub pull request state before merging" >&2
     return 1
