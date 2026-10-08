@@ -1,0 +1,76 @@
+################ S1: GitHub - caller verified head A, newer head B (no checks reported yet) pushed just before the merge
+
+=== S1a  BEFORE (base b062eb9, no way to name the verified head): B is merged
+verified head A=7378ee4c97ff72d9d10b08df4649aa60af91e917
+pushed head  B=73a5354e46a1cf8934bd6e6908614f131838b8af  (statusCheckRollup: [])
+$ <base b062eb9>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45
+  stdout| armed: state/task-x1.check.sh
+  stdout| verified: https://github.com/example/repo/pull/45 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 73a5354e46a1cf8934bd6e6908614f131838b8af
+  exit=0
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit 73a5354e46a1cf8934bd6e6908614f131838b8af --squash
+  forge PR state: MERGED; merged head: 73a5354e46a1cf8934bd6e6908614f131838b8af
+  main now contains: README change.txt late.txt 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S1b  BEFORE (base b062eb9): a caller trying --expect-head A gets it forwarded to gh as an unknown flag
+verified head A=c04c274522f0944c85e93d6325223d5dd878796d
+pushed head  B=dc12ef29d9a82d4666fadd5a15f8c78cfc30f051  (statusCheckRollup: [])
+$ <base b062eb9>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head c04c274522f0944c85e93d6325223d5dd878796d
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head dc12ef29d9a82d4666fadd5a15f8c78cfc30f051
+  stderr| unknown flag: --expect-head
+  stderr| Usage:  gh pr merge [<number> | <url> | <branch>] [flags]
+  stderr| error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+  exit=1
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit dc12ef29d9a82d4666fadd5a15f8c78cfc30f051 --squash --expect-head c04c274522f0944c85e93d6325223d5dd878796d
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S1c  AFTER (change 6bd3810): --expect-head A refuses the moved head before any forge merge call
+verified head A=589dbe1073862bbacade55e2040abd0b638eddcc
+pushed head  B=b28fe5fb22871264526c38677e187f9e7876b80d  (statusCheckRollup: [])
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 589dbe1073862bbacade55e2040abd0b638eddcc
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| error: refusing to merge https://github.com/example/repo/pull/45: the live head b28fe5fb22871264526c38677e187f9e7876b80d is not the expected head 589dbe1073862bbacade55e2040abd0b638eddcc
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S1d  AFTER: same, but B's checks all completed as SKIPPED (green to the live check)
+verified head A=2300f9b1a8e581d03e10f53ff7047b6743323828
+pushed head  B=2072e5de8feeb3751d002cfd4f75a4c0116e1a4a  (ci=SKIPPED, e2e=SKIPPED)
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 2300f9b1a8e581d03e10f53ff7047b6743323828
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| error: refusing to merge https://github.com/example/repo/pull/45: the live head 2072e5de8feeb3751d002cfd4f75a4c0116e1a4a is not the expected head 2300f9b1a8e581d03e10f53ff7047b6743323828
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S1e  AFTER: omitting --expect-head keeps the existing behavior unchanged (B merges, bound to the head it read)
+verified head A=4d1630c1389e8e7ccfd0b319e6720d707737c322
+pushed head  B=7253d2c907c333071cd425d0512b45815f2845cd  (statusCheckRollup: [])
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45
+  stdout| armed: state/task-x1.check.sh
+  stdout| verified: https://github.com/example/repo/pull/45 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 7253d2c907c333071cd425d0512b45815f2845cd
+  exit=0
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit 7253d2c907c333071cd425d0512b45815f2845cd --squash
+  forge PR state: MERGED; merged head: 7253d2c907c333071cd425d0512b45815f2845cd
+  main now contains: README change.txt late.txt 
+  lab pr= recorded: 1; leftover locks: 

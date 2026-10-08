@@ -1,0 +1,113 @@
+################ S5: anything but one full commit SHA, given once as a separate argument, is refused before any state is recorded or forge is read
+
+=== short SHA (abbreviated 7 hex)
+live head of this PR: b3d3941b660af4e8259b03ceea1316f4e326913f
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head b3d3941
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== 39 hex
+live head of this PR: b3d3941b660af4e8259b03ceea1316f4e326913f
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head b3d3941b660af4e8259b03ceea1316f4e326913
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== 41 hex
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 012d053c7393562f7f7de465ba2e6c42ebe4414d0
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== uppercase of the live head
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 012D053C7393562F7F7DE465BA2E6C42EBE4414D
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== non-hex 40 chars
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head gggggggggggggggggggggggggggggggggggggggg
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== trailing newline
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 012d053c7393562f7f7de465ba2e6c42ebe4414d
+
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== empty value
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== flag given with no value
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== = form
+live head of this PR: 012d053c7393562f7f7de465ba2e6c42ebe4414d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head=012d053c7393562f7f7de465ba2e6c42ebe4414d
+  stderr| error: --expect-head requires a separate SHA argument
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== given twice
+live head of this PR: c695087a2ec72726c517c2766b9c740003c61d0d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head c695087a2ec72726c517c2766b9c740003c61d0d --expect-head c695087a2ec72726c517c2766b9c740003c61d0d
+  stderr| error: --expect-head may be specified only once
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== a ref name instead of a SHA
+live head of this PR: c695087a2ec72726c517c2766b9c740003c61d0d
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head refs/heads/feature
+  stderr| error: --expect-head requires a full commit SHA as the live head read accepts it
+  exit=2
+  forge calls (any): 0
+  lab pr= recorded: 0
+  main now contains: README 
+
+=== adversarial: --expect-head A plus a smuggled forge head override (-- --match-head-commit B) is refused
+verified head A=c695087a2ec72726c517c2766b9c740003c61d0d
+pushed head  B=fe745c89c7b68c755e08b996d0584e063a4e6622
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head c695087a2ec72726c517c2766b9c740003c61d0d -- --match-head-commit fe745c89c7b68c755e08b996d0584e063a4e6622
+  stderr| error: extra merge arguments must not override the head commit
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 0; leftover locks: 

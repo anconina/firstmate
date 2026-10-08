@@ -1,0 +1,46 @@
+################ S2: GitHub - the forge merge call is bound to the caller's expected head
+
+=== S2a  live head == expected head A: merges, and gh pr merge carries --match-head-commit A
+verified head A=04e0d70804d9bb8ebb6e534f278effdc93dc1910
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 04e0d70804d9bb8ebb6e534f278effdc93dc1910
+  stdout| armed: state/task-x1.check.sh
+  stdout| verified: https://github.com/example/repo/pull/45 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 04e0d70804d9bb8ebb6e534f278effdc93dc1910
+  exit=0
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit 04e0d70804d9bb8ebb6e534f278effdc93dc1910 --squash
+  forge PR state: MERGED; merged head: 04e0d70804d9bb8ebb6e534f278effdc93dc1910
+  main now contains: README change.txt 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S2b  race: live read sees A (== expected), then head B is pushed between the read and the forge merge call
+verified head A=d7dede51b08fd56b09d209a48161718f1cd2b92b
+head B=f8b87f2a43f7b947b424866742eb811910a1b922 will land on the PR branch at the moment gh pr merge runs
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head d7dede51b08fd56b09d209a48161718f1cd2b92b
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head d7dede51b08fd56b09d209a48161718f1cd2b92b
+  stderr| GraphQL: Head branch was modified. Review and try the merge again. (mergePullRequest)
+  stderr| error: GitHub merge outcome was not successful: state=OPEN, merged=false, isInMergeQueue=false
+  exit=1
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit d7dede51b08fd56b09d209a48161718f1cd2b92b --squash
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S2c  --expect-head combined with --attended-override, --allow-red and forge extra args, in any order
+verified head A=23d127e402946d8024afc59b6c30dd8f37702be4
+head A checks: ci=SUCCESS, flaky-lint=FAILURE
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --allow-red flaky-lint --expect-head 23d127e402946d8024afc59b6c30dd8f37702be4 --attended-override -- --merge
+  stdout| armed: state/task-x1.check.sh
+  stdout| verified: https://github.com/example/repo/pull/45 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 23d127e402946d8024afc59b6c30dd8f37702be4
+  exit=0
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit 23d127e402946d8024afc59b6c30dd8f37702be4 --merge
+  forge PR state: MERGED; merged head: 23d127e402946d8024afc59b6c30dd8f37702be4
+  main now contains: README change.txt 
+  lab pr= recorded: 1; leftover locks: 

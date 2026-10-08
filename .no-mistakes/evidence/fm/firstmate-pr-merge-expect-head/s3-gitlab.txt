@@ -1,0 +1,59 @@
+################ S3: GitLab - the same guard and binding on a merge request
+
+=== S3a  BEFORE (base b062eb9): newer head B with a succeeded pipeline is merged in place of the verified A
+verified head A=7fd6f0965f526b7c1afa64353e2b50ac763d6e8a
+pushed head  B=befa3bcc3c13602cf951065dc2517ceb67f16e61  (head_pipeline: success)
+$ <base b062eb9>/bin/fm-pr-merge.sh task-x1 https://gitlab.example/group/subgroup/project/-/merge_requests/7
+  stdout| armed: state/task-x1.check.sh
+  stdout| ✓ Merged! !7
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://gitlab.example/group/subgroup/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head befa3bcc3c13602cf951065dc2517ceb67f16e61
+  exit=0
+  forge merge calls:
+    glab GITLAB_HOST=gitlab.example mr merge 7 -R https://gitlab.example/group/subgroup/project --sha befa3bcc3c13602cf951065dc2517ceb67f16e61 --yes
+  forge PR state: merged; merged head: befa3bcc3c13602cf951065dc2517ceb67f16e61
+  main now contains: README change.txt late.txt 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S3b  AFTER: --expect-head A refuses the moved head before glab mr merge
+verified head A=bda4a4a14f3c71040e94739fb0d016be44e62132
+pushed head  B=a904719d2071e4b3e4ad1aff26988f9da174296d  (head_pipeline: success)
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://gitlab.example/group/subgroup/project/-/merge_requests/7 --expect-head bda4a4a14f3c71040e94739fb0d016be44e62132
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| error: refusing to merge https://gitlab.example/group/subgroup/project/-/merge_requests/7: the live head a904719d2071e4b3e4ad1aff26988f9da174296d is not the expected head bda4a4a14f3c71040e94739fb0d016be44e62132
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: opened; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S3c  AFTER: live head == expected head A merges, and glab mr merge carries --sha A
+verified head A=ddaec3581f67837f5e24229da1f60ab9509a25ba
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://gitlab.example/group/subgroup/project/-/merge_requests/7 --expect-head ddaec3581f67837f5e24229da1f60ab9509a25ba
+  stdout| armed: state/task-x1.check.sh
+  stdout| ✓ Merged! !7
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://gitlab.example/group/subgroup/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head ddaec3581f67837f5e24229da1f60ab9509a25ba
+  exit=0
+  forge merge calls:
+    glab GITLAB_HOST=gitlab.example mr merge 7 -R https://gitlab.example/group/subgroup/project --sha ddaec3581f67837f5e24229da1f60ab9509a25ba --yes
+  forge PR state: merged; merged head: ddaec3581f67837f5e24229da1f60ab9509a25ba
+  main now contains: README change.txt 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S3d  AFTER: race - B lands between the live read and glab mr merge; the --sha binding refuses it
+verified head A=7a2901db4dd4e23cc54424f220db8033aa674ddf
+head B=8a07a27c8906c7af502b2b5d2c62f435f1efcc1b will land on the MR branch at the moment glab mr merge runs
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://gitlab.example/group/subgroup/project/-/merge_requests/7 --expect-head 7a2901db4dd4e23cc54424f220db8033aa674ddf
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://gitlab.example/group/subgroup/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head 7a2901db4dd4e23cc54424f220db8033aa674ddf
+  stderr| ERROR: 409 Conflict: SHA does not match HEAD of source branch: 8a07a27c8906c7af502b2b5d2c62f435f1efcc1b
+  exit=1
+  forge merge calls:
+    glab GITLAB_HOST=gitlab.example mr merge 7 -R https://gitlab.example/group/subgroup/project --sha 7a2901db4dd4e23cc54424f220db8033aa674ddf --yes
+  forge PR state: opened; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 

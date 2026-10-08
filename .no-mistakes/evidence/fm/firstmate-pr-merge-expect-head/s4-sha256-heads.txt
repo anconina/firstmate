@@ -1,0 +1,56 @@
+################ S4: SHA-256 object-format repository (64-hex heads), as fm_pr_head_valid accepts a live head
+
+=== S4a  GitHub, 64-hex live head == expected head: merges bound to the 64-hex head
+verified head A=3adc24d48aff960226d3a91ec4073b5694dcb53d738bfdb13576febcb8e12921 (64 hex)
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 3adc24d48aff960226d3a91ec4073b5694dcb53d738bfdb13576febcb8e12921
+  stdout| armed: state/task-x1.check.sh
+  stdout| verified: https://github.com/example/repo/pull/45 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://github.com/example/repo/pull/45 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 3adc24d48aff960226d3a91ec4073b5694dcb53d738bfdb13576febcb8e12921
+  exit=0
+  forge merge calls:
+    gh pr merge 45 --repo example/repo --match-head-commit 3adc24d48aff960226d3a91ec4073b5694dcb53d738bfdb13576febcb8e12921 --squash
+  forge PR state: MERGED; merged head: 3adc24d48aff960226d3a91ec4073b5694dcb53d738bfdb13576febcb8e12921
+  main now contains: README change.txt 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S4b  GitHub, newer 64-hex head B pushed: --expect-head A refuses
+verified head A=d41f8109ace5c73c7d8f66d1cdd9ee55e5d7786784a7629626dae6ed62d89bab
+pushed head  B=d878ead21e4c4d662534819fbd36164c52142b7764c30d984d382f0ebd49e425  (statusCheckRollup: [])
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head d41f8109ace5c73c7d8f66d1cdd9ee55e5d7786784a7629626dae6ed62d89bab
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| error: refusing to merge https://github.com/example/repo/pull/45: the live head d878ead21e4c4d662534819fbd36164c52142b7764c30d984d382f0ebd49e425 is not the expected head d41f8109ace5c73c7d8f66d1cdd9ee55e5d7786784a7629626dae6ed62d89bab
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S4c  adversarial: the first 40 hex of the 64-hex live head is well-formed but is not the head - refused, never prefix-matched
+verified head A=6bd468480a72d8e8170c18da1f869294591b503d633a8e4892c772e1aa557f54
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://github.com/example/repo/pull/45 --expect-head 6bd468480a72d8e8170c18da1f869294591b503d
+  stdout| armed: state/task-x1.check.sh
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| error: refusing to merge https://github.com/example/repo/pull/45: the live head 6bd468480a72d8e8170c18da1f869294591b503d633a8e4892c772e1aa557f54 is not the expected head 6bd468480a72d8e8170c18da1f869294591b503d
+  exit=1
+  forge merge calls:
+    (none)
+  forge PR state: OPEN; merged head: -
+  main now contains: README 
+  lab pr= recorded: 1; leftover locks: 
+
+=== S4d  GitLab, 64-hex live head == expected head: merges with --sha bound to it
+verified head A=b93c05c55569865b8d2ba02359f87dafc2fd90761c5644322ea5c98501952d75
+$ <change 6bd3810>/bin/fm-pr-merge.sh task-x1 https://gitlab.example/group/subgroup/project/-/merge_requests/7 --expect-head b93c05c55569865b8d2ba02359f87dafc2fd90761c5644322ea5c98501952d75
+  stdout| armed: state/task-x1.check.sh
+  stdout| ✓ Merged! !7
+  stderr| (fm-guard WATCHER DOWN banner elided: the lab home runs no watcher)
+  stderr| verified: https://gitlab.example/group/subgroup/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head b93c05c55569865b8d2ba02359f87dafc2fd90761c5644322ea5c98501952d75
+  exit=0
+  forge merge calls:
+    glab GITLAB_HOST=gitlab.example mr merge 7 -R https://gitlab.example/group/subgroup/project --sha b93c05c55569865b8d2ba02359f87dafc2fd90761c5644322ea5c98501952d75 --yes
+  forge PR state: merged; merged head: b93c05c55569865b8d2ba02359f87dafc2fd90761c5644322ea5c98501952d75
+  main now contains: README change.txt 
+  lab pr= recorded: 1; leftover locks: 
