@@ -1,0 +1,4 @@
+### diagnosis only: the same test with its poll hold widened from 0.5s to 20s (temp copy; repository untouched)
+ 17:30:58 up 3 days,  5:59,  4 users,  load average: 203.46, 228.35, 208.85
+--- target commit
+ok - teardown cannot race merged-poll authority consumption

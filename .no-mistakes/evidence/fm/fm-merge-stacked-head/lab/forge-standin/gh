@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Disposable local stand-in for the GitHub CLI, used only by the live-validation
+# lab for bin/fm-pr-merge.sh. It is NOT firstmate code and never talks to
+# github.com. Every answer comes from a real bare git repository under
+# $FM_LAB_FORGE/<owner>/<repo>.git:
+#   - a pull request's head is whatever its head branch really points at on that
+#     remote right now, so only a real `git push` moves it;
+#   - the `ci` check is green only at commits CI was recorded green for;
+#   - `pr merge` refuses a --match-head-commit that is not the branch's real
+#     head, and otherwise performs a real squash merge onto the base branch.
+# Pull request records live beside the repository in <repo>.prs/<number>/.
+set -u
+F=${FM_LAB_FORGE:?FM_LAB_FORGE is not set}
+printf '%s\n' "$*" >> "$F/gh.log"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+pr_dir() { printf '%s/%s/%s.prs/%s' "$F" "$1" "$2" "$3"; }
+repo_dir() { printf '%s/%s/%s.git' "$F" "$1" "$2"; }
+
+# The full pull request object, read live from the bare repository.
+pr_json() {  # <owner> <repo> <number>
+  local d repo branch base state draft head rollup mergeable merge_state
+  d=$(pr_dir "$1" "$2" "$3"); repo=$(repo_dir "$1" "$2")
+  [ -d "$d" ] || die "GraphQL: Could not resolve to a PullRequest with the number of $3. (repository.pullRequest)"
+  branch=$(cat "$d/branch"); base=$(cat "$d/base"); state=$(cat "$d/state")
+  draft=$(cat "$d/draft" 2>/dev/null || echo false)
+  head=$(git -C "$repo" rev-parse --verify --quiet "refs/heads/$branch^{commit}") \
+    || die "could not resolve head branch $branch"
+  if [ "$(cat "$F/$1/$2.checks/$head" 2>/dev/null)" = SUCCESS ]; then
+    rollup='[{"__typename":"CheckRun","name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]'
+  else
+    rollup='[{"__typename":"CheckRun","name":"ci","status":"IN_PROGRESS","conclusion":""}]'
+  fi
+  if [ "$state" != OPEN ]; then
+    mergeable=UNKNOWN; merge_state=UNKNOWN
+  elif git -C "$repo" merge-tree --write-tree "refs/heads/$base" "$head" >/dev/null 2>&1; then
+    mergeable=MERGEABLE; merge_state=CLEAN
+  else
+    mergeable=CONFLICTING; merge_state=DIRTY
+  fi
+  jq -cn --arg state "$state" --argjson draft "$draft" --arg mergeable "$mergeable" \
+    --arg merge_state "$merge_state" --arg head "$head" --arg branch "$branch" \
+    --arg base "$base" --argjson rollup "$rollup" \
+    '{state:$state,isDraft:$draft,mergeable:$mergeable,mergeStateStatus:$merge_state,
+      headRefOid:$head,headRefName:$branch,baseRefName:$base,statusCheckRollup:$rollup}'
+}
+
+case "${1:-} ${2:-}" in
+  "pr view")
+    shift 2
+    url=; fields=; query=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --json) fields=$2; shift 2 ;;
+        -q|--jq) query=$2; shift 2 ;;
+        *) url=$1; shift ;;
+      esac
+    done
+    case "$url" in
+      https://github.com/*/*/pull/*) ;;
+      *) die "invalid pull request URL: $url" ;;
+    esac
+    rest=${url#https://github.com/}
+    owner=${rest%%/*}; rest=${rest#*/}
+    repo=${rest%%/*}; number=${rest##*/}
+    # Fault injection for the unreadable-head-branch scenario.
+    if [ "$fields" = headRefName ] && [ -e "$(pr_dir "$owner" "$repo" "$number")/fault-headRefName" ]; then
+      die "HTTP 502: Bad Gateway (https://api.github.com/graphql)"
+    fi
+    full=$(pr_json "$owner" "$repo" "$number") || exit 1
+    out=$(printf '%s' "$full" | jq -c --arg f "$fields" '. as $p | ($f | split(",")) | map({(.): $p[.]}) | add')
+    if [ -n "$query" ]; then
+      printf '%s' "$out" | jq -r "$query"
+    else
+      printf '%s\n' "$out"
+    fi
+    ;;
+  "pr merge")
+    shift 2
+    number=; slug=; match=; method=squash
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --repo) slug=$2; shift 2 ;;
+        --match-head-commit) match=$2; shift 2 ;;
+        --squash) method=squash; shift ;;
+        --merge|--rebase) die "this lab forge only squash-merges" ;;
+        *) number=$1; shift ;;
+      esac
+    done
+    owner=${slug%%/*}; repo=${slug#*/}
+    d=$(pr_dir "$owner" "$repo" "$number"); git_dir=$(repo_dir "$owner" "$repo")
+    [ "$(cat "$d/state")" = OPEN ] || die "GraphQL: Pull Request is not mergeable (mergePullRequest)"
+    branch=$(cat "$d/branch"); base=$(cat "$d/base")
+    head=$(git -C "$git_dir" rev-parse --verify --quiet "refs/heads/$branch^{commit}")
+    [ "$head" = "$match" ] \
+      || die "GraphQL: Head branch was modified. Review and try the merge again. (mergePullRequest)"
+    base_tip=$(git -C "$git_dir" rev-parse --verify --quiet "refs/heads/$base^{commit}")
+    tree=$(git -C "$git_dir" merge-tree --write-tree "$base_tip" "$head") \
+      || die "GraphQL: Pull Request is not mergeable (mergePullRequest)"
+    squash=$(GIT_AUTHOR_NAME=lab-forge GIT_AUTHOR_EMAIL=forge@lab.invalid \
+      GIT_COMMITTER_NAME=lab-forge GIT_COMMITTER_EMAIL=forge@lab.invalid \
+      git -C "$git_dir" commit-tree "$tree" -p "$base_tip" -m "$branch (#$number)") || die "squash failed"
+    git -C "$git_dir" update-ref "refs/heads/$base" "$squash" "$base_tip" || die "base moved"
+    printf 'MERGED\n' > "$d/state"
+    printf '%s\n' "$squash" > "$d/merge-commit"
+    printf '✓ Squashed and merged pull request %s#%s (%s)\n' "$slug" "$number" "$branch"
+    ;;
+  "api graphql")
+    shift 2
+    owner=; repo=; number=; query=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -F) case "$2" in owner=*) owner=${2#owner=} ;; repo=*) repo=${2#repo=} ;; number=*) number=${2#number=} ;; esac; shift 2 ;;
+        -f) shift 2 ;;
+        --jq) query=$2; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    d=$(pr_dir "$owner" "$repo" "$number")
+    [ -d "$d" ] || die "GraphQL: Could not resolve to a PullRequest"
+    state=$(cat "$d/state"); merged=false
+    [ "$state" != MERGED ] || merged=true
+    jq -n --arg state "$state" --argjson merged "$merged" --arg base "$(cat "$d/base")" \
+      '{data:{repository:{pullRequest:{state:$state,merged:$merged,isInMergeQueue:false,baseRefName:$base}}}}' \
+      | jq -r "${query:-.}"
+    ;;
+  api\ *)
+    shift
+    path=; query=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --paginate) shift ;;
+        --jq) query=$2; shift 2 ;;
+        *) path=$1; shift ;;
+      esac
+    done
+    case "$path" in
+      repos/*/*/rules/branches/*) body='[]' ;;
+      repos/*/*/branches/*) body=$(jq -cn --arg n "${path##*/}" '{name:$n,protected:false}') ;;
+      repos/*/*/commits/*/check-runs) body='{"check_runs":[]}' ;;
+      *) die "gh: Not Found (HTTP 404)" ;;
+    esac
+    if [ -n "$query" ]; then
+      printf '%s' "$body" | jq -r "$query"
+    else
+      printf '%s\n' "$body"
+    fi
+    ;;
+  *)
+    die "lab forge stand-in: unsupported gh call: $*"
+    ;;
+esac

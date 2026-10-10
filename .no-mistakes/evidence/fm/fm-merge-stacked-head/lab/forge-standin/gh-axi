@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Disposable local stand-in for gh-axi, used only by the live-validation lab.
+# bin/fm-pr-merge.sh reads it only as the fallback proof of a landed merge; it
+# answers from the same local pull request records as the gh stand-in.
+set -u
+F=${FM_LAB_FORGE:?FM_LAB_FORGE is not set}
+printf '%s\n' "$*" >> "$F/gh-axi.log"
+case "${1:-} ${2:-}" in
+  "pr view")
+    [ "$#" -eq 5 ] && [ "${4:-}" = --repo ] || exit 2
+    d="$F/${5%%/*}/${5#*/}.prs/$3"
+    [ -d "$d" ] || exit 1
+    printf 'pull_request:\n  number: %s\n  state: %s\n' "$3" "$(tr '[:upper:]' '[:lower:]' < "$d/state")"
+    ;;
+  *) exit 2 ;;
+esac

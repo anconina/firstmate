@@ -1,0 +1,18 @@
+### new stacked-merge tests in tests/fm-pr-check-security.test.sh (target commit)
+ok - fm-pr-check refuses to register a PR whose named head is only in the worker copy
+ok - fm-pr-check refuses a direct-PR registration while a later commit is only in the copy
+ok - fm-pr-merge merges a pushed stacked PR while the copy's HEAD is on a later unpushed branch
+ok - fm-pr-merge fetches a missing forge head and accepts its local ancestor despite stale remote-tracking refs
+ok - fm-pr-merge merges a no-mistakes PR whose pipeline rebased the branch the copy still holds
+ok - fm-pr-merge refuses an unpublished PR fix after registration, leaving the audit trail and the watch but no ready line
+ok - fm-pr-merge checks containment against its final verified head, including after retries
+ok - fm-pr-merge still refuses a stacked PR whose own branch has commits that were never pushed
+ok - fm-pr-merge refuses an unpushed PR branch even when another branch's HEAD is pushed
+ok - fm-pr-merge falls back to the HEAD gate only when the PR branch is absent
+ok - fm-pr-merge refuses an unreadable PR branch instead of treating it as absent
+ok - valid direct and merge flows record exact metadata and reject multiline head metadata
+
+real	1m43.219s
+user	0m33.309s
+sys	0m39.534s
+exit=0

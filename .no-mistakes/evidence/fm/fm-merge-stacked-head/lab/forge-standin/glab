@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Disposable local stand-in for the GitLab CLI, used only by the live-validation
+# lab for bin/fm-pr-merge.sh. It is NOT firstmate code and never talks to a
+# GitLab instance. Every answer comes from real bare git repositories under
+# $FM_LAB_FORGE/gitlab/<project path>.git:
+#   - a merge request's sha is whatever its source branch really points at in
+#     its source project (the target project, or a fork) right now;
+#   - the head pipeline succeeded only at commits a pipeline was recorded for;
+#   - `mr merge` refuses a --sha that is not the source branch's real head, and
+#     otherwise performs a real merge commit on the target branch.
+# Records: gitlab/mrs/<iid>/ and gitlab/projects/<id>/path.
+set -u
+F=${FM_LAB_FORGE:?FM_LAB_FORGE is not set}
+G="$F/gitlab"
+printf 'GITLAB_HOST=%s %s\n' "${GITLAB_HOST:-}" "$*" >> "$F/glab.log"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+project_git() {  # <project id>
+  printf '%s/%s.git' "$G" "$(cat "$G/projects/$1/path")"
+}
+
+# The merge request object, read live from the bare repositories. The source
+# head is mirrored into the target project under refs/merge-requests/<iid>/head,
+# as GitLab does, so a fork's commits can be merged there.
+mr_json() {  # <iid>
+  local d source_branch source_project target_project state source_git target_git head
+  local pipeline conflicts detail
+  d="$G/mrs/$1"
+  [ -d "$d" ] || die "404 Not Found"
+  source_branch=$(cat "$d/source_branch"); source_project=$(cat "$d/source_project")
+  target_project=$(cat "$d/target_project"); state=$(cat "$d/state")
+  source_git=$(project_git "$source_project"); target_git=$(project_git "$target_project")
+  head=$(git -C "$source_git" rev-parse --verify --quiet "refs/heads/$source_branch^{commit}") \
+    || die "source branch $source_branch does not exist"
+  git -C "$target_git" fetch -q "$source_git" "+refs/heads/$source_branch:refs/merge-requests/$1/head" 2>/dev/null \
+    || die "could not mirror the source branch"
+  pipeline=running
+  [ "$(cat "$G/pipelines/$head" 2>/dev/null)" != success ] || pipeline=success
+  conflicts=false
+  git -C "$target_git" merge-tree --write-tree refs/heads/main "$head" >/dev/null 2>&1 || conflicts=true
+  if [ "$state" != opened ]; then detail=not_open
+  elif [ "$conflicts" = true ]; then detail=conflict
+  elif [ "$pipeline" != success ]; then detail=ci_still_running
+  else detail=mergeable
+  fi
+  jq -cn --argjson iid "$1" --arg state "$state" --arg detail "$detail" --argjson conflicts "$conflicts" \
+    --arg head "$head" --arg branch "$source_branch" --argjson source "$source_project" \
+    --argjson target "$target_project" --arg pipeline "$pipeline" \
+    '{iid:$iid,state:$state,detailed_merge_status:$detail,has_conflicts:$conflicts,
+      blocking_discussions_resolved:true,sha:$head,source_branch:$branch,
+      source_project_id:$source,target_project_id:$target,
+      head_pipeline:{sha:$head,status:$pipeline},
+      merge_when_pipeline_succeeds:false,merge_after:null}'
+}
+
+case "${1:-} ${2:-}" in
+  "mr view")
+    shift 2
+    iid=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -R|-F) shift 2 ;;
+        *) iid=$1; shift ;;
+      esac
+    done
+    mr_json "$iid"
+    ;;
+  "mr merge")
+    shift 2
+    iid=; sha=
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -R) shift 2 ;;
+        --sha) sha=$2; shift 2 ;;
+        --yes|--auto-merge=false) shift ;;
+        *) iid=$1; shift ;;
+      esac
+    done
+    json=$(mr_json "$iid") || exit 1
+    [ "$(printf '%s' "$json" | jq -r .detailed_merge_status)" = mergeable ] \
+      || die "405 Method Not Allowed: merge request is not mergeable"
+    head=$(printf '%s' "$json" | jq -r .sha)
+    [ "$head" = "$sha" ] || die "409 Conflict: SHA does not match HEAD of source branch: $head"
+    d="$G/mrs/$iid"
+    target_git=$(project_git "$(cat "$d/target_project")")
+    base_tip=$(git -C "$target_git" rev-parse --verify --quiet 'refs/heads/main^{commit}')
+    tree=$(git -C "$target_git" merge-tree --write-tree "$base_tip" "$head") || die "merge failed"
+    merge=$(GIT_AUTHOR_NAME=lab-forge GIT_AUTHOR_EMAIL=forge@lab.invalid \
+      GIT_COMMITTER_NAME=lab-forge GIT_COMMITTER_EMAIL=forge@lab.invalid \
+      git -C "$target_git" commit-tree "$tree" -p "$base_tip" -p "$head" \
+      -m "Merge branch '$(cat "$d/source_branch")' into 'main'") || die "merge failed"
+    git -C "$target_git" update-ref refs/heads/main "$merge" "$base_tip" || die "target moved"
+    printf 'merged\n' > "$d/state"
+    printf '✓ Merged!\n'
+    ;;
+  api\ projects/*)
+    id=${2#projects/}
+    [ ! -e "$G/projects/$id/fault-unreadable" ] || die "glab: 404 Project Not Found (HTTP 404)"
+    [ -f "$G/projects/$id/path" ] || die "glab: 404 Project Not Found (HTTP 404)"
+    path=$(cat "$G/projects/$id/path")
+    host=${GITLAB_HOST:?}
+    jq -cn --argjson id "$id" --arg host "$host" --arg path "$path" \
+      '{id:$id,web_url:("https://"+$host+"/"+$path),http_url_to_repo:("https://"+$host+"/"+$path+".git"),
+        ssh_url_to_repo:("git@"+$host+":"+$path+".git")}'
+    ;;
+  *)
+    die "lab forge stand-in: unsupported glab call: $*"
+    ;;
+esac

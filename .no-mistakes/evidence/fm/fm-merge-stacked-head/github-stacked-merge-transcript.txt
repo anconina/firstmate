@@ -1,0 +1,512 @@
+Live lab transcript: bin/fm-pr-merge.sh / bin/fm-pr-check.sh driven against a disposable lab.
+FM_HOME is a marked lab home from bin/fm-lab-home.sh; the worker copy is a real git worktree
+pushing to a real bare git remote; gh is a local stand-in that answers from that remote.
+Lines starting with "$" are commands; "(forge)" and "(worker copy)" lines show real git state.
+The lab home runs no watcher, so the guard's "WATCHER DOWN" banner is elided from script output.
+
+================================================================
+SCENARIO G0 (reproduction, base commit): green part-1 PR is refused because the copy HEAD is unpushed part-2
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> c7f047b7fa8c13b7e3bcbadde8f6243c2920984b
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at c7f047b7fa8c13b7e3bcbadde8f6243c2920984b (head of fm/stack-part-1)
+
+--- firstmate registers the ready PR while the worker is still on part 1
+$ bin/fm-pr-check.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4      [base commit fb75c1f9, before the fix]
+    armed: state/stack-task.check.sh
+    [exit 0]
+PASS: registration of the pushed, green part-1 PR (exit 0)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 98c7637ee0985e2f1b5349b02d49d479ba58a394
+(worker copy) current branch: fm/stack-part-2  HEAD: 98c7637ee0985e2f1b5349b02d49d479ba58a394
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        c7f047b7fa8c  pushed
+          fm/stack-part-2        98c7637ee098  not on the remote
+          fm/stack-task          5823149c1f64  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 c7f047b7fa8c part 1
+          main 5823149c1f64 initial commit
+(forge) files on main: README.md 
+
+--- merge the green part-1 PR with the scripts from the base commit
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4      [base commit fb75c1f9, before the fix]
+    error: named head 98c7637ee0985e2f1b5349b02d49d479ba58a394 is unreachable outside the worker copy
+    [exit 1]
+PASS: base commit refuses the merge (exit 1)
+PASS: base commit refuses with the reported message, naming the unpushed part-2 commit
+PASS: the PR is still open on the forge
+PASS: no merge was sent to the forge
+
+================================================================
+SCENARIO G1: green part-1 PR merges while the copy HEAD is on unpushed part-2 (registered earlier)
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 95f7eb81be4f9a997a3fe7f5de37d20ee7b90611
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 95f7eb81be4f9a997a3fe7f5de37d20ee7b90611 (head of fm/stack-part-1)
+
+--- firstmate registers the ready PR while the worker is still on part 1
+$ bin/fm-pr-check.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    [exit 0]
+PASS: registration of the pushed, green part-1 PR (exit 0)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> ca954cac418f823966e6221ef4628abce4871716
+(worker copy) current branch: fm/stack-part-2  HEAD: ca954cac418f823966e6221ef4628abce4871716
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        95f7eb81be4f  pushed
+          fm/stack-part-2        ca954cac418f  not on the remote
+          fm/stack-task          6e141a232e1e  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 95f7eb81be4f part 1
+          main 6e141a232e1e initial commit
+(forge) files on main: README.md 
+
+--- merge the green part-1 PR
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 95f7eb81be4f9a997a3fe7f5de37d20ee7b90611
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through (exit 0)
+PASS: the script reports the PR merged
+PASS: the PR is merged on the forge
+PASS: the forge merge was bound to part-1's pushed head
+PASS: forge main now carries part 1 and nothing of part 2
+PASS: part-2 was not pushed by the merge
+PASS: the worker copy is still on its unpushed part-2 commit
+PASS: the task record holds pr= and pr_head= of the merged PR
+(worker copy) current branch: fm/stack-part-2  HEAD: ca954cac418f823966e6221ef4628abce4871716
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        95f7eb81be4f  pushed
+          fm/stack-part-2        ca954cac418f  not on the remote
+          fm/stack-task          6e141a232e1e  not on the remote
+(forge) PR #4 state: MERGED
+(forge) remote branches:
+          fm/stack-part-1 95f7eb81be4f part 1
+          main 5539a196d2cd fm/stack-part-1 (#4)
+(forge) files on main: README.md part1.txt 
+
+================================================================
+SCENARIO G2: never-registered stacked PR - registration still refuses the unpushed HEAD, the merge still goes through
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 315f067ada2919a2e90671906b73aec609bfb609
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 315f067ada2919a2e90671906b73aec609bfb609 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 3b32b41d21af65773c6f648b97dfca7d116cbe30
+(worker copy) current branch: fm/stack-part-2  HEAD: 3b32b41d21af65773c6f648b97dfca7d116cbe30
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        315f067ada29  pushed
+          fm/stack-part-2        3b32b41d21af  not on the remote
+          fm/stack-task          8c1cbad15772  not on the remote
+
+--- ordinary PR-ready registration names the copy HEAD, which is unpushed part 2
+$ bin/fm-pr-check.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    error: named head 3b32b41d21af65773c6f648b97dfca7d116cbe30 is unreachable outside the worker copy
+    [exit 1]
+PASS: PR-ready registration still refuses while HEAD is only in the copy (exit 1)
+PASS: registration names the unpushed HEAD
+PASS: the refused registration recorded no pr=
+
+--- merge the green part-1 PR
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 315f067ada2919a2e90671906b73aec609bfb609
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through (exit 0)
+PASS: the PR is merged on the forge
+PASS: forge main carries part 1 only
+PASS: the merge recorded pr=
+
+================================================================
+SCENARIO G3 (guard): an unpushed commit on the PR's own branch still refuses; pushing it and a green check lets it merge
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 3f43c89d62da85615911998a2d58a99b4444df31
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 3f43c89d62da85615911998a2d58a99b4444df31 (head of fm/stack-part-1)
+
+--- the worker adds a review fix to part 1 and does not push it, then moves on to part 2
+$ git commit -m "part 1 review fix"   # -> b886638ce2203da59b37b26733d4a79b96394a05
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> deaff4aa2b067e02c355232494d0fb50773a7d21
+(worker copy) current branch: fm/stack-part-2  HEAD: deaff4aa2b067e02c355232494d0fb50773a7d21
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        b886638ce220  1 commit(s) not pushed
+          fm/stack-part-2        deaff4aa2b06  not on the remote
+          fm/stack-task          adfbfc2c750a  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 3f43c89d62da part 1
+          main adfbfc2c750a initial commit
+(forge) files on main: README.md 
+
+--- merge the part-1 PR
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 3f43c89d62da85615911998a2d58a99b4444df31
+    error: named head b886638ce2203da59b37b26733d4a79b96394a05 could not be verified in pull request head 3f43c89d62da85615911998a2d58a99b4444df31
+    [exit 1]
+PASS: the merge is refused (exit 1)
+PASS: the refusal names the unpushed part-1 fix and the PR head that lacks it
+PASS: the PR is still open on the forge
+PASS: no merge was sent to the forge
+PASS: forge main is unchanged
+PASS: pr= stays recorded after the refusal
+PASS: the merge poll stays armed after the refusal
+
+--- the worker pushes the part-1 fix (still sitting on part 2); CI has not reported at the new head yet
+$ git push -q origin fm/stack-part-1
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    error: refusing to merge https://github.com/fm-lab-forge/stacked-demo/pull/4
+      - check 'ci' is not green
+    error: these checks are not green: ci
+    [exit 1]
+PASS: a pushed head whose check is not green yet is refused (exit 1)
+PASS: the refusal is the green-check one, not the publication one
+
+--- CI goes green at the new head
+(forge) check "ci" is green at b886638ce2203da59b37b26733d4a79b96394a05 (head of fm/stack-part-1)
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head b886638ce2203da59b37b26733d4a79b96394a05
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through once the fix is pushed and green (exit 0)
+PASS: the forge merge was bound to the pushed fix
+PASS: forge main carries part 1 with its fix
+PASS: the worker copy is still on unpushed part 2
+
+================================================================
+SCENARIO G4 (adversarial): the PR branch fix is unpushed while HEAD is on a PUSHED part-2, and the fix exists only on another remote branch
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 54391946132f068565966110a10cb7670d2d0258
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 54391946132f068565966110a10cb7670d2d0258 (head of fm/stack-part-1)
+$ git commit -m "part 1 review fix"   # -> ef901ba453913612926093e4d9fd339e5a9a2cf2
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> ed7db4c708538379248a9bcb0102cce25311fa28
+$ git push -q -u origin fm/stack-part-2
+(worker copy) current branch: fm/stack-part-2  HEAD: ed7db4c708538379248a9bcb0102cce25311fa28
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        ef901ba45391  1 commit(s) not pushed
+          fm/stack-part-2        ed7db4c70853  pushed
+          fm/stack-task          de21fbf92c19  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 54391946132f part 1
+          fm/stack-part-2 ed7db4c70853 part 2
+          main de21fbf92c19 initial commit
+(forge) files on main: README.md 
+
+--- merge the part-1 PR: HEAD is fully pushed, the PR branch is not
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 54391946132f068565966110a10cb7670d2d0258
+    error: named head ef901ba453913612926093e4d9fd339e5a9a2cf2 could not be verified in pull request head 54391946132f068565966110a10cb7670d2d0258
+    [exit 1]
+PASS: a pushed HEAD on another branch does not hide the unpushed PR-branch commit (exit 1)
+PASS: the refusal names the unpushed part-1 fix
+PASS: no merge was sent to the forge
+
+--- the fix is pushed, but to a different remote branch than the PR's
+$ git push -q origin fm/stack-part-1:refs/heads/fm/part-1-backup
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/part-1-backup ef901ba45391 part 1 review fix
+          fm/stack-part-1 54391946132f part 1
+          fm/stack-part-2 ed7db4c70853 part 2
+          main de21fbf92c19 initial commit
+(forge) files on main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 54391946132f068565966110a10cb7670d2d0258
+    error: named head ef901ba453913612926093e4d9fd339e5a9a2cf2 could not be verified in pull request head 54391946132f068565966110a10cb7670d2d0258
+    [exit 1]
+PASS: a fix published only on another remote branch still refuses (exit 1)
+PASS: the refusal still names the fix missing from the PR head
+PASS: the PR is still open and no merge was sent
+
+================================================================
+SCENARIO G5 (boundary): the PR branch has another name in the copy - the copy HEAD is gated instead, so an unpushed HEAD still refuses
+================================================================
+$ git checkout -q -b wip-part-1
+$ git commit -m "part 1"   # -> d19233cb283cdb29cde432547378af05ad3be61a
+$ git push -q origin wip-part-1:refs/heads/fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at d19233cb283cdb29cde432547378af05ad3be61a (head of fm/stack-part-1)
+$ git commit -m "follow-up"   # -> efd178ddf42f1fa227b64b9bcd4ee03017cf7afd
+(worker copy) current branch: wip-part-1  HEAD: efd178ddf42f1fa227b64b9bcd4ee03017cf7afd
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-task          34032917c96c  not on the remote
+          wip-part-1             efd178ddf42f  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 d19233cb283c part 1
+          main 34032917c96c initial commit
+(forge) files on main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head d19233cb283cdb29cde432547378af05ad3be61a
+    error: named head efd178ddf42f1fa227b64b9bcd4ee03017cf7afd is unreachable outside the worker copy
+    [exit 1]
+PASS: with no local branch of the PR's name, an unpushed HEAD refuses (exit 1)
+PASS: the refusal comes from the copy HEAD gate
+PASS: the PR is still open and no merge was sent
+
+--- the worker pushes the follow-up to the PR branch and CI goes green
+$ git push -q origin wip-part-1:refs/heads/fm/stack-part-1
+(forge) check "ci" is green at efd178ddf42f1fa227b64b9bcd4ee03017cf7afd (head of fm/stack-part-1)
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head efd178ddf42f1fa227b64b9bcd4ee03017cf7afd
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: once HEAD is pushed, the merge goes through (exit 0)
+PASS: the PR is merged on the forge
+
+================================================================
+SCENARIO G6 (adversarial): the forge cannot tell which branch the PR is from - the merge refuses rather than guessing
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> e46d85d58736258b530bbe5bdff85c6e8c0f70c4
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at e46d85d58736258b530bbe5bdff85c6e8c0f70c4 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 30b85f6b8901bbe1406d487568631bf9f6749e8a
+
+--- the forge head-branch read fails (injected 502 on headRefName)
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head e46d85d58736258b530bbe5bdff85c6e8c0f70c4
+    error: pull request head branch could not be verified
+    [exit 1]
+PASS: an unreadable PR head branch refuses (exit 1)
+PASS: the refusal says the head branch could not be verified
+PASS: the PR is still open and no merge was sent
+
+--- the read works again
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head e46d85d58736258b530bbe5bdff85c6e8c0f70c4
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through once the head branch is readable (exit 0)
+
+================================================================
+SCENARIO G7: no-mistakes task whose pipeline rebased and pushed the PR branch - the stale local branch and unpushed part-2 do not block
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> b86319c4eed783d710a4c6a1f3d0970fc185a73b
+
+--- main moves on; the pipeline rebases part 1 onto it in its own checkout, adds a fix, and pushes
+(pipeline) pushed rebased head 62afc30b86fc49446b0a3423248c8e6de77d00fc; the copy still has part-1 at b86319c4eed783d710a4c6a1f3d0970fc185a73b
+PASS: setup: the pushed head does not contain the copy's part-1 tip
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 62afc30b86fc49446b0a3423248c8e6de77d00fc (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> d6be9928715c04ce39ebd5892dcd88d47f005dac
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 62afc30b86fc pipeline fix for part 1
+          main 7307538c7892 main moved on
+(forge) files on main: README.md other.txt 
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 62afc30b86fc49446b0a3423248c8e6de77d00fc
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the no-mistakes PR merges at the pipeline head (exit 0)
+PASS: the forge merge was bound to the pipeline head
+PASS: the PR is merged on the forge
+PASS: the copy branches were left as they were
+
+================================================================
+SCENARIO G8: in a secondmate home, a refused merge never tells the parent the PR is ready; a landed one reports merged once
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 0a905dad818db0253e3a51fe556e1187ed238ed9
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 0a905dad818db0253e3a51fe556e1187ed238ed9 (head of fm/stack-part-1)
+$ git commit -m "part 1 review fix"   # -> 318248deb8c60197c7699b8a83fdf31ff82946c1
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> dde24ca566f665105e81d9329620590449c81da7
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 0a905dad818db0253e3a51fe556e1187ed238ed9
+    error: named head 318248deb8c60197c7699b8a83fdf31ff82946c1 could not be verified in pull request head 0a905dad818db0253e3a51fe556e1187ed238ed9
+    [exit 1]
+PASS: the merge is refused for the unpushed part-1 fix (exit 1)
+(parent channel after the refusal)
+    (no lines)
+PASS: no PR-ready line reached the parent channel
+PASS: pr= is recorded
+PASS: the merge poll is armed
+
+--- the fix is pushed, CI goes green, the merge lands
+$ git push -q origin fm/stack-part-1
+(forge) check "ci" is green at 318248deb8c60197c7699b8a83fdf31ff82946c1 (head of fm/stack-part-1)
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 318248deb8c60197c7699b8a83fdf31ff82946c1
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through (exit 0)
+(parent channel after the merge)
+    done [key=merged-stack-task] [at=1791652632]: merged stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+PASS: the landed merge was reported upward once
+PASS: the merge-time re-record still sent no PR-ready line
+
+================================================================
+SCENARIO G9: in a secondmate home, ordinary PR-ready registration still tells the parent
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 96afcc1edf7a21f662d0c39b15d36c27f0189e6b
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at 96afcc1edf7a21f662d0c39b15d36c27f0189e6b (head of fm/stack-part-1)
+$ bin/fm-pr-check.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    [exit 0]
+PASS: registration of the pushed, green PR (exit 0)
+(parent channel after registration)
+    done [key=child-pr-stack-task] [at=1791652636]: child stack-task PR ready: https://github.com/fm-lab-forge/stacked-demo/pull/4 mode=direct-PR yolo=off
+PASS: the PR-ready line reached the parent channel
+
+================================================================
+SCENARIO G10: someone else pushed a commit on top of the worker's part-1 - the forge head is newer than the copy, and the merge still goes through
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> fed58686996781db530be9c145338fa6429ac7b4
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at fed58686996781db530be9c145338fa6429ac7b4 (head of fm/stack-part-1)
+
+--- a reviewer pushes a commit on top of part 1 from their own clone; the copy never fetches it
+(forge) check "ci" is green at 59f125027e3e2dedaf6a8a50c29a21246cfed6e3 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 5a4b75c4a5348f8386b79dc0883e057cd7d78db4
+PASS: setup: the forge head is not an object in the worker copy
+(worker copy) current branch: fm/stack-part-2  HEAD: 5a4b75c4a5348f8386b79dc0883e057cd7d78db4
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        fed586869967  remote branch is at a commit this copy has not fetched
+          fm/stack-part-2        5a4b75c4a534  not on the remote
+          fm/stack-task          f7b07b46dfe7  not on the remote
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 59f125027e3e reviewer tweak on part 1
+          main f7b07b46dfe7 initial commit
+(forge) files on main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 59f125027e3e2dedaf6a8a50c29a21246cfed6e3
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: the merge goes through: the copy's part-1 tip is contained in the newer forge head (exit 0)
+PASS: the forge merge was bound to the forge's current head
+PASS: no local or remote-tracking branch in the copy moved
+PASS: the worker copy is still on its unpushed part-2 commit
+
+================================================================
+SCENARIO G11 (adversarial): the PR branch was force-pushed to a history that drops the worker's commit - the merge refuses
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> a5d645d9e199c3c0c4cb653d8ccedba1a179c096
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at a5d645d9e199c3c0c4cb653d8ccedba1a179c096 (head of fm/stack-part-1)
+
+--- the worker commits a second part-1 change locally; meanwhile the remote branch is force-pushed to a rewrite without it
+$ git commit -m "part 1 second change"   # -> 8d306fdb6a2ae87e099b2e11d307750d8e08195f
+(forge) check "ci" is green at a905c29ba7a593e5b817c3e6375b9bb799e490ba (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 965ed7c1cda8d877ce29d25f87d6e9a83a1a3f4e
+(forge) PR #4 state: OPEN
+(forge) remote branches:
+          fm/stack-part-1 a905c29ba7a5 part 1, rewritten
+          main 691a5d25c6a7 initial commit
+(forge) files on main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head a905c29ba7a593e5b817c3e6375b9bb799e490ba
+    error: named head 8d306fdb6a2ae87e099b2e11d307750d8e08195f could not be verified in pull request head a905c29ba7a593e5b817c3e6375b9bb799e490ba
+    [exit 1]
+PASS: a green forge head that does not contain the copy's PR-branch tip refuses (exit 1)
+PASS: the refusal names the local part-1 tip and the rewritten forge head
+PASS: the PR is still open and no merge was sent
+
+================================================================
+SCENARIO G12: a whole stack from one task copy - PR #4 then PR #5 each merge while the next part is still unpushed
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> dfadec158ef21ac05e3f92af66bdd9f89e33b6b6
+$ git push -q -u origin fm/stack-part-1
+(forge) pull request #4 opened: fm/stack-part-1 -> main
+(forge) check "ci" is green at dfadec158ef21ac05e3f92af66bdd9f89e33b6b6 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> c26b8d5293a47d58336ca97e9c869179220b02be
+
+--- merge part 1 (PR #4) while part 2 is only in the copy
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/4
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is open and mergeable, with every unwaived required check reported and every unwaived check green at head dfadec158ef21ac05e3f92af66bdd9f89e33b6b6
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/4 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: PR #4 merges (exit 0)
+
+--- the worker pushes part 2, PR #5 opens and goes green, and the worker moves on to part 3 without pushing
+$ git push -q -u origin fm/stack-part-2
+(forge) pull request #5 opened: fm/stack-part-2 -> main
+(forge) check "ci" is green at c26b8d5293a47d58336ca97e9c869179220b02be (head of fm/stack-part-2)
+$ git checkout -q -b fm/stack-part-3
+$ git commit -m "part 3"   # -> 85b706eb386de2ccc083431989827d5344ca09ea
+(worker copy) current branch: fm/stack-part-3  HEAD: 85b706eb386de2ccc083431989827d5344ca09ea
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        dfadec158ef2  pushed
+          fm/stack-part-2        c26b8d5293a4  pushed
+          fm/stack-part-3        85b706eb386d  not on the remote
+          fm/stack-task          b1301a7ee074  not on the remote
+(forge) PR #4 state: MERGED
+(forge) remote branches:
+          fm/stack-part-1 dfadec158ef2 part 1
+          fm/stack-part-2 c26b8d5293a4 part 2
+          main 9fa28c9e150d fm/stack-part-1 (#4)
+(forge) files on main: README.md part1.txt 
+
+--- merge part 2 (PR #5) from the same task
+$ bin/fm-pr-merge.sh stack-task https://github.com/fm-lab-forge/stacked-demo/pull/5
+    WARNING: queued wakes pending - drain them with bin/fm-wake-drain.sh before anything else.
+    armed: state/stack-task.check.sh
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/5 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c26b8d5293a47d58336ca97e9c869179220b02be
+    verified: https://github.com/fm-lab-forge/stacked-demo/pull/5 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    [exit 0]
+PASS: PR #5 merges (exit 0)
+PASS: both PRs are merged on the forge
+PASS: the second forge merge was bound to part-2's pushed head
+PASS: forge main carries parts 1 and 2 and nothing of part 3
+PASS: the worker copy is still on its unpushed part-3 commit
+PASS: the task record now holds the second PR
+(forge) PR #4 state: MERGED
+(forge) remote branches:
+          fm/stack-part-1 dfadec158ef2 part 1
+          fm/stack-part-2 c26b8d5293a4 part 2
+          main 117355511135 fm/stack-part-2 (#5)
+(forge) files on main: README.md part1.txt part2.txt 
+
+================================================================
+ALL GITHUB SCENARIO ASSERTIONS PASSED

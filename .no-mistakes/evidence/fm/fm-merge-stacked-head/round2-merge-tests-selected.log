@@ -1,0 +1,34 @@
+### merge-time publication tests selected from tests/fm-pr-merge.test.sh (target commit 0d268064), round 2
+ 17:36:17 up 3 days,  6:04,  4 users,  load average: 115.08, 166.77, 188.96
+ok - fm-pr-merge records pr= and pr_head= for a verified GitHub merge
+ok - fm-pr-merge propagates a real merge failure without silently succeeding
+ok - fm-pr-merge merges a no-mistakes PR whose worktree is gone and refuses a direct-PR one
+ok - fm-pr-merge merges a GitLab merge request through glab instead of refusing it
+ok - fm-pr-merge reports a stale recorded head and verifies the live one
+ok - fm-pr-merge checks a GitLab direct-PR merge request's own source branch, not the copy's later HEAD
+ok - fm-pr-merge gates the copy's HEAD when a fork merge request's branch name matches an unrelated local branch, and refuses when the fork cannot be read
+ok - fm-pr-merge refuses an unreadable GitLab merge request state rather than merging blind
+ok - a merge a secondmate home performs itself is reported upward exactly once
+ok - a landed GitLab merge request is reported upward on the same channel
+grep: /tmp/fm-pr-merge-tests.tb6CAI/gitlab-refusal-silent/state/parent-replies.status: No such file or directory
+grep: /tmp/fm-pr-merge-tests.tb6CAI/gitlab-refusal-silent/state/parent-replies.status: No such file or directory
+ok - a GitLab merge refused before the forge call reports no outcome
+
+real	2m23.077s
+user	0m45.239s
+sys	0m55.835s
+exit=0
+### merge-entrypoint tests selected from tests/fm-captain-hold-lifecycle.test.sh
+ok - merge approval releases before zero-retention cleanup records completion
+ok - the PR merge entrypoint refuses a captain-held task before merging
+ok - the PR merge entrypoint separates an unreadable authority record from an absent one
+ok - merge entrypoints reject unsafe identities and absent state before locking
+ok - merge entrypoints refuse a replacement incarnation after waiting for cleanup
+ok - merge entrypoints own task state before forced cleanup can retire it
+ok - a released merge passes the guarded entrypoint and remains recently landed
+
+real	1m33.385s
+user	0m34.635s
+sys	0m36.239s
+exit=0
+ 17:40:14 up 3 days,  6:08,  4 users,  load average: 96.95, 132.33, 170.10

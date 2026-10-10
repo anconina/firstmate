@@ -1,0 +1,84 @@
+### load-sensitive race test from tests/fm-pr-check-security.test.sh, isolated, round 2
+ 17:36:33 up 3 days,  6:05,  4 users,  load average: 114.72, 164.15, 187.74
+--- attempt 1 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 2 [target 0d268064]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 1 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 2 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- diagnosis: same test at target with its poll hold widened from 0.5s to 20s (temp copy; repository untouched)
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+ 17:37:53 up 3 days,  6:06,  4 users,  load average: 108.60, 150.59, 181.03
+### further alternating attempts of the same isolated race test
+ 17:38:24 up 3 days,  6:06,  4 users,  load average: 114.64, 148.17, 179.27
+--- attempt 3 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 3 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 4 [target 0d268064]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 4 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 5 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 5 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 6 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 6 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+ 17:40:04 up 3 days,  6:08,  4 users,  load average: 99.63, 134.02, 171.05
+### third batch, base first this time
+ 17:41:00 up 3 days,  6:09,  4 users,  load average: 91.93, 125.98, 166.16
+--- attempt 7 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 7 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 8 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 8 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 9 [base fb75c1f9, without this change]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 9 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 10 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 10 [target 0d268064]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 11 [base fb75c1f9, without this change]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 11 [target 0d268064]
+not ok - teardown race: refused cleanup removed persisted authority
+exit=1
+--- attempt 12 [base fb75c1f9, without this change]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+--- attempt 12 [target 0d268064]
+ok - teardown cannot race merged-poll authority consumption
+exit=0
+ 17:43:07 up 3 days,  6:11,  4 users,  load average: 130.61, 128.05, 161.55

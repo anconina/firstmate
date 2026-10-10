@@ -1,0 +1,192 @@
+Live lab transcript: bin/fm-pr-merge.sh driven against a disposable GitLab-shaped lab.
+FM_HOME is a marked lab home from bin/fm-lab-home.sh; the worker copy is a real git worktree
+pushing to real bare git remotes; glab is a local stand-in that answers from those remotes.
+The lab home runs no watcher, so the guard's "WATCHER DOWN" banner is elided from script output.
+
+================================================================
+SCENARIO L0 (reproduction, base commit): a green part-1 MR is refused because the copy HEAD is unpushed part-2
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 504846c4ac85bc8c30036c71343bdd59de3040c7
+$ git push -q -u origin fm/stack-part-1
+(forge) merge request !7 opened: fm/stack-part-1 (project 1) -> main (project 1)
+(forge) head pipeline succeeded at 504846c4ac85bc8c30036c71343bdd59de3040c7 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> a33df159106cffe4d8ffec7fd778407f5677c79f
+(worker copy) current branch: fm/stack-part-2  HEAD: a33df159106cffe4d8ffec7fd778407f5677c79f
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        504846c4ac85  pushed
+          fm/stack-part-2        a33df159106c  not on the remote
+          fm/stack-task          7884595e98b6  not on the remote
+(forge) MR !7 state: opened
+(forge) target project branches:
+          fm/stack-part-1 504846c4ac85 part 1
+          main 7884595e98b6 initial commit
+(forge) files on target main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7      [base commit fb75c1f9, before the fix]
+    error: named head a33df159106cffe4d8ffec7fd778407f5677c79f is unreachable outside the worker copy
+    [exit 1]
+PASS: base commit refuses the merge (exit 1)
+PASS: base commit refuses naming the unpushed part-2 commit
+PASS: the MR is still open and no merge was sent
+
+================================================================
+SCENARIO L1: a green part-1 MR merges while the copy HEAD is on unpushed part-2
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> d7ee6a51f279d87712e09cd316af8c978b78088c
+$ git push -q -u origin fm/stack-part-1
+(forge) merge request !7 opened: fm/stack-part-1 (project 1) -> main (project 1)
+(forge) head pipeline succeeded at d7ee6a51f279d87712e09cd316af8c978b78088c (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> a9118663f6c472bce2fed6f76d0c89434d160b7e
+(worker copy) current branch: fm/stack-part-2  HEAD: a9118663f6c472bce2fed6f76d0c89434d160b7e
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        d7ee6a51f279  pushed
+          fm/stack-part-2        a9118663f6c4  not on the remote
+          fm/stack-task          e8e596ee2704  not on the remote
+(forge) MR !7 state: opened
+(forge) target project branches:
+          fm/stack-part-1 d7ee6a51f279 part 1
+          main e8e596ee2704 initial commit
+(forge) files on target main: README.md 
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head d7ee6a51f279d87712e09cd316af8c978b78088c
+    ✓ Merged!
+    [exit 0]
+PASS: the merge goes through (exit 0)
+PASS: the forge merge was bound to part-1's pushed head
+PASS: the MR is merged on the forge
+PASS: target main carries part 1 and nothing of part 2
+PASS: the worker copy is still on its unpushed part-2 commit
+(forge) MR !7 state: merged
+(forge) target project branches:
+          fm/stack-part-1 d7ee6a51f279 part 1
+          main cb55d8d50c21 Merge branch 'fm/stack-part-1' into 'main'
+(forge) files on target main: README.md part1.txt 
+
+================================================================
+SCENARIO L2 (guard): an unpushed commit on the MR's own source branch still refuses; pushing it and a passed pipeline lets it merge
+================================================================
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> 4c28a0ef2b263c4793a5302070c5a39d24b49efe
+$ git push -q -u origin fm/stack-part-1
+(forge) merge request !7 opened: fm/stack-part-1 (project 1) -> main (project 1)
+(forge) head pipeline succeeded at 4c28a0ef2b263c4793a5302070c5a39d24b49efe (head of fm/stack-part-1)
+$ git commit -m "part 1 review fix"   # -> bd9f50267d51e01da31444b6479469f09c33370c
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> f9907733ad764a8a13c18bdfd228dee58fdd5a1c
+(worker copy) current branch: fm/stack-part-2  HEAD: f9907733ad764a8a13c18bdfd228dee58fdd5a1c
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        bd9f50267d51  1 commit(s) not pushed
+          fm/stack-part-2        f9907733ad76  not on the remote
+          fm/stack-task          12e43bb1e454  not on the remote
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head 4c28a0ef2b263c4793a5302070c5a39d24b49efe
+    error: named head bd9f50267d51e01da31444b6479469f09c33370c could not be verified in pull request head 4c28a0ef2b263c4793a5302070c5a39d24b49efe
+    [exit 1]
+PASS: the merge is refused (exit 1)
+PASS: the refusal names the unpushed part-1 fix and the MR head that lacks it
+PASS: the MR is still open and no merge was sent
+PASS: pr= stays recorded after the refusal
+PASS: the merge poll stays armed after the refusal
+
+--- the worker pushes the fix and the pipeline passes at the new head
+$ git push -q origin fm/stack-part-1
+(forge) head pipeline succeeded at bd9f50267d51e01da31444b6479469f09c33370c (head of fm/stack-part-1)
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head bd9f50267d51e01da31444b6479469f09c33370c
+    ✓ Merged!
+    [exit 0]
+PASS: the merge goes through once the fix is pushed and its pipeline passed (exit 0)
+PASS: the MR is merged on the forge
+PASS: target main carries part 1 with its fix
+
+================================================================
+SCENARIO L3: an MR from a fork - the copy's part-1 tracks the fork and is pushed there, HEAD is on unpushed part-2
+================================================================
+$ git remote add fork https://gitlab.lab.example/fork-owner/project.git
+(forge) project 2 is a fork: https://gitlab.lab.example/fork-owner/project
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> b6161cfe594aec946759304bbbfae1917e9e89f8
+$ git push -q -u fork fm/stack-part-1
+(forge) merge request !7 opened: fm/stack-part-1 (project 2) -> main (project 1)
+(forge) head pipeline succeeded at b6161cfe594aec946759304bbbfae1917e9e89f8 (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 6be25eb1e1dd66eba40335cde53672025565fb7c
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head b6161cfe594aec946759304bbbfae1917e9e89f8
+    ✓ Merged!
+    [exit 0]
+PASS: the fork MR merges (exit 0)
+PASS: the fork's URLs were read from the MR's own instance
+PASS: the MR is merged on the forge
+PASS: target main carries part 1 only
+
+================================================================
+SCENARIO L4 (guard): the same fork MR with an unpushed fix on the tracked source branch refuses
+================================================================
+$ git remote add fork https://gitlab.lab.example/fork-owner/project.git
+(forge) project 2 is a fork: https://gitlab.lab.example/fork-owner/project
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "part 1"   # -> e86415d96616da12017bfa46e867aa1ac6a859d6
+$ git push -q -u fork fm/stack-part-1
+(forge) merge request !7 opened: fm/stack-part-1 (project 2) -> main (project 1)
+(forge) head pipeline succeeded at e86415d96616da12017bfa46e867aa1ac6a859d6 (head of fm/stack-part-1)
+$ git commit -m "part 1 review fix"   # -> 75c6026ff63ba3b8c8c60c3903bbbc049365949e
+$ git checkout -q -b fm/stack-part-2
+$ git commit -m "part 2"   # -> 33a0b4b8344107758fd95599f53d28c6ff364b2b
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head e86415d96616da12017bfa46e867aa1ac6a859d6
+    error: named head 75c6026ff63ba3b8c8c60c3903bbbc049365949e could not be verified in pull request head e86415d96616da12017bfa46e867aa1ac6a859d6
+    [exit 1]
+PASS: the fork MR is refused (exit 1)
+PASS: the refusal names the unpushed fix on the fork-tracking branch
+PASS: the MR is still open and no merge was sent
+
+================================================================
+SCENARIO L5 (adversarial): a fork MR whose branch name matches an unrelated local branch - readable fork gates HEAD, unreadable fork refuses
+================================================================
+$ git remote add fork https://gitlab.lab.example/fork-owner/project.git
+(forge) project 2 is a fork: https://gitlab.lab.example/fork-owner/project
+
+--- someone else pushes fm/stack-part-1 to the fork and opens the MR; the copy has its own unrelated branch of that name tracking origin
+(forge) merge request !7 opened: fm/stack-part-1 (project 2) -> main (project 1)
+(forge) head pipeline succeeded at 3680b3bd8d011882899f06438e9965c532e62bec (head of fm/stack-part-1)
+$ git checkout -q -b fm/stack-part-1
+$ git commit -m "unrelated local notes"   # -> 177b3eb8740118d7a16506306e3d30ce250911ad
+$ git config branch.fm/stack-part-1.remote origin
+$ git config branch.fm/stack-part-1.merge refs/heads/fm/stack-part-1
+$ git checkout -q fm/stack-task
+(worker copy) current branch: fm/stack-task  HEAD: d9c6c069a568f51bbf6a57fcfe6b997f63244e74
+(worker copy) local branches, compared with the same-named remote branch:
+          fm/stack-part-1        177b3eb87401  not on the remote
+          fm/stack-task          d9c6c069a568  not on the remote
+
+--- the fork project cannot be read (injected 404)
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head 3680b3bd8d011882899f06438e9965c532e62bec
+    error: source project 2 could not be read to tell whether local branch fm/stack-part-1 is the merge request's source branch
+    [exit 1]
+PASS: an unreadable fork refuses even though the copy HEAD is pushed (exit 1)
+PASS: the refusal names the unreadable fork
+PASS: the MR is still open and no merge was sent
+
+--- the fork project is readable again: the namesake branch is not the source branch, so the pushed HEAD is what is gated
+$ bin/fm-pr-merge.sh stack-task https://gitlab.lab.example/group/project/-/merge_requests/7
+    armed: state/stack-task.check.sh
+    verified: https://gitlab.lab.example/group/project/-/merge_requests/7 is open and mergeable, with a successful pipeline at head 3680b3bd8d011882899f06438e9965c532e62bec
+    ✓ Merged!
+    [exit 0]
+PASS: the fork MR merges; the unrelated same-named branch is ignored (exit 0)
+PASS: the forge merge was bound to the fork's head
+PASS: the MR is merged on the forge
+
+================================================================
+ALL GITLAB SCENARIO ASSERTIONS PASSED
