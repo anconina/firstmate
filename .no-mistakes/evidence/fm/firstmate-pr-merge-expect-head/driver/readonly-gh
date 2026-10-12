@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Read-only gate in front of the real gh, for the real-GitHub probe only.
+# It forwards exactly two kinds of call to the real CLI - `gh pr view` and a
+# plain GET `gh api repos/...` - and refuses every other call (any merge, any
+# write, any GraphQL call) with exit 97, logging it as BLOCKED. Every call is
+# logged, so the log proves what reached GitHub and that no merge was attempted.
+set -u
+LOG=${READONLY_GH_LOG:?}
+REAL=${READONLY_GH_REAL:?}
+blocked() {
+  printf 'BLOCKED  %s\n' "$*" >> "$LOG"
+  echo "readonly-gh: blocked a call that is not a read: $*" >&2
+  exit 97
+}
+case "${1:-} ${2:-}" in
+  "pr view") ;;
+  api\ *)
+    for a in "$@"; do
+      case "$a" in
+        graphql|-X|-X*|--method|--method=*|-f|-F|--field|--field=*|--raw-field|--raw-field=*|--input|--input=*)
+          blocked "$@"
+          ;;
+      esac
+    done
+    ;;
+  *) blocked "$@" ;;
+esac
+printf 'READ     %s\n' "$*" >> "$LOG"
+GH_CONFIG_DIR=${READONLY_GH_CONFIG:?} GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1 exec "$REAL" "$@"

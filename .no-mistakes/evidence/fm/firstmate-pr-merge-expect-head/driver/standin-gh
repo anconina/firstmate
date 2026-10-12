@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Stand-in GitHub CLI for the expect-head live drive. It is NOT the product: it
+# plays the forge, answering from a mutable state directory ($STANDIN_FORGE) the
+# exact gh calls bin/fm-pr-merge.sh makes, and enforcing --match-head-commit the
+# way GitHub does (a merge whose bound head is not the live head is rejected).
+# Every invocation is logged so a run can prove which forge calls were made.
+set -u
+F=${STANDIN_FORGE:?}
+printf '%s\n' "$*" >> "$F/gh.log"
+
+jq_filter=
+args=("$@")
+i=0
+while [ "$i" -lt "${#args[@]}" ]; do
+  case "${args[$i]}" in
+    --jq|-q) jq_filter=${args[$((i + 1))]:-}; i=$((i + 1)) ;;
+  esac
+  i=$((i + 1))
+done
+emit() {  # raw JSON on stdin, filtered the way gh applies --jq
+  if [ -n "$jq_filter" ]; then jq -r "$jq_filter"; else cat; fi
+}
+pr_json() {
+  jq -cn --arg state "$(cat "$F/state")" --arg head "$(cat "$F/head")" \
+    --slurpfile rollup "$F/rollup.json" \
+    '{state:$state,isDraft:false,mergeable:"MERGEABLE",mergeStateStatus:"CLEAN",
+      headRefOid:$head,baseRefName:"main",statusCheckRollup:$rollup[0]}'
+}
+
+case "${1:-} ${2:-}" in
+  "pr view")
+    pr_json | emit
+    # A push that lands after the verifying read and before the merge call.
+    case " $* " in
+      *statusCheckRollup*)
+        if [ -s "$F/push-after-verify" ]; then
+          cat "$F/push-after-verify" > "$F/head"
+          printf '[]\n' > "$F/rollup.json"
+          rm -f "$F/push-after-verify"
+          printf '[forge] a push landed after the verifying read: head is now %s\n' "$(cat "$F/head")" >> "$F/events.log"
+        fi
+        ;;
+    esac
+    exit 0
+    ;;
+  "pr merge")
+    bound=
+    i=3
+    # The flag set of the real `gh pr merge` (gh 2.102.0 --help). Real gh
+    # rejects anything else at parse time, before any network call, and so
+    # does this stand-in.
+    while [ "$i" -lt "${#args[@]}" ]; do
+      case "${args[$i]}" in
+        --match-head-commit) bound=${args[$((i + 1))]:-}; i=$((i + 1)) ;;
+        --repo|-R|--author-email|-A|--body|-b|--body-file|-F|--subject|-t) i=$((i + 1)) ;;
+        --admin|--auto|--delete-branch|-d|--disable-auto|--merge|-m|--rebase|-r|--squash|-s) ;;
+        -*)
+          echo "unknown flag: ${args[$i]}" >&2
+          printf '[forge] gh rejected the merge command at flag parsing: unknown flag %s\n' "${args[$i]}" >> "$F/events.log"
+          exit 1
+          ;;
+      esac
+      i=$((i + 1))
+    done
+    live=$(cat "$F/head")
+    if [ "$(cat "$F/state")" != OPEN ]; then
+      echo "X Pull request is not open" >&2
+      exit 1
+    fi
+    if [ -n "$bound" ] && [ "$bound" != "$live" ]; then
+      echo "X Pull request is not mergeable: head branch was modified (bound to $bound, live head $live)" >&2
+      printf '[forge] REJECTED merge bound to %s: live head is %s\n' "$bound" "$live" >> "$F/events.log"
+      exit 1
+    fi
+    printf 'MERGED\n' > "$F/state"
+    printf '%s\n' "$live" > "$F/merged-head"
+    printf '[forge] merged at head %s (merge call bound to %s)\n' "$live" "${bound:-<unbound>}" >> "$F/events.log"
+    printf '✓ Squashed and merged pull request #%s\n' "${3:-}"
+    exit 0
+    ;;
+  "api graphql")
+    state=$(cat "$F/state")
+    merged=false
+    [ "$state" = MERGED ] && merged=true
+    jq -cn --arg state "$state" --argjson merged "$merged" \
+      '{data:{repository:{pullRequest:{state:$state,merged:$merged,isInMergeQueue:false,baseRefName:"main"}}}}' | emit
+    exit 0
+    ;;
+  api\ *)
+    case " $* " in
+      *" repos/"*"/commits/"*"/check-runs"*) printf '{"check_runs":[]}\n' | emit ;;
+      *" repos/"*"/rules/branches/"*) printf '[{"type":"deletion"}]\n' | emit ;;
+      *" repos/"*"/branches/"*)
+        printf '{"name":"main","protected":false,"protection":{"enabled":false,"required_status_checks":{"enforcement_level":"off","contexts":[],"checks":[]}}}\n' | emit
+        ;;
+      *) echo "standin-gh: unhandled api call: $*" >&2; exit 1 ;;
+    esac
+    exit 0
+    ;;
+esac
+echo "standin-gh: unhandled call: $*" >&2
+exit 1

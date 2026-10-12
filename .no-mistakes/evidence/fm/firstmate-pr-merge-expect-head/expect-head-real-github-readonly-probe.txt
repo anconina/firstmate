@@ -1,0 +1,42 @@
+product: /home/ubuntu/.no-mistakes/worktrees/954444e3c755/01M4REGC4XC34Y5M6HTCCH8C46/bin/fm-pr-merge.sh
+commit:  2eaa59045f1a1e8957a27c4afcce2e6350530421
+real CLI: /usr/bin/gh (gh version 2.102.0 (2026-09-30))
+target:  https://github.com/kunchenguid/firstmate/pull/4395
+independent read of the target: state=MERGED headRefOid=29c4053e1e7d165f8b6d979c6eb84df6bd70b39d
+
+=== R1  real GitHub: an expected head that is not the live head is refused ===
+
+$ bin/fm-pr-merge.sh task-x1 https://github.com/kunchenguid/firstmate/pull/4395 --expect-head 0000000000000000000000000000000000000001
+exit code: 1
+  stdout| armed: state/task-x1.check.sh
+  stderr| error: refusing to merge https://github.com/kunchenguid/firstmate/pull/4395: the live head 29c4053e1e7d165f8b6d979c6eb84df6bd70b39d is not the expected head 0000000000000000000000000000000000000001
+calls that reached the gh gate:
+  | READ     pr view https://github.com/kunchenguid/firstmate/pull/4395 --json headRefOid -q .headRefOid
+  | READ     pr view https://github.com/kunchenguid/firstmate/pull/4395 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  PASS  exit 1
+  PASS  the refusal names the head GitHub really reports as live
+  PASS  no merge call was attempted
+  PASS  nothing but reads reached the gate (no BLOCKED line)
+  PASS  locks were released
+
+=== R2  real GitHub: the real live head passes the expected-head check ===
+
+$ bin/fm-pr-merge.sh task-x1 https://github.com/kunchenguid/firstmate/pull/4395 --expect-head 29c4053e1e7d165f8b6d979c6eb84df6bd70b39d
+exit code: 1
+  stdout| armed: state/task-x1.check.sh
+  stderr| error: refusing to merge https://github.com/kunchenguid/firstmate/pull/4395
+  stderr|   - state is "MERGED", not open
+  stderr|   - mergeable is "UNKNOWN", not MERGEABLE
+calls that reached the gh gate:
+  | READ     pr view https://github.com/kunchenguid/firstmate/pull/4395 --json headRefOid -q .headRefOid
+  | READ     pr view https://github.com/kunchenguid/firstmate/pull/4395 --json state,isDraft,mergeable,mergeStateStatus,headRefOid,baseRefName,statusCheckRollup
+  | READ     api repos/kunchenguid/firstmate/branches/main
+  | READ     api --paginate repos/kunchenguid/firstmate/rules/branches/main
+  PASS  no expected-head refusal: the real head string compares equal
+  PASS  the run then refuses for the unrelated reason that the pull request is not open
+  PASS  exit 1
+  PASS  no merge call was attempted
+  PASS  nothing but reads reached the gate (no BLOCKED line)
+  PASS  locks were released
+
+0 failed

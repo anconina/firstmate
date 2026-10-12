@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Stand-in gh-axi: the post-merge fallback reader only. Logged so a run can
+# prove whether it was reached.
+set -u
+F=${STANDIN_FORGE:?}
+printf '%s\n' "$*" >> "$F/gh-axi.log"
+case "${1:-} ${2:-}" in
+  "pr view")
+    state=open
+    [ "$(cat "$F/state")" = MERGED ] && state=merged
+    printf 'pull_request:\n  number: %s\n  state: %s\n' "${3:-}" "$state"
+    exit 0
+    ;;
+esac
+echo "standin-gh-axi: unhandled call: $*" >&2
+exit 1

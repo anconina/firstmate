@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Any forge CLI other than the read-only gh gate is refused outright in the
+# real-GitHub probe, and the attempt is logged.
+printf 'BLOCKED  %s %s\n' "$(basename "$0")" "$*" >> "${READONLY_GH_LOG:?}"
+exit 97

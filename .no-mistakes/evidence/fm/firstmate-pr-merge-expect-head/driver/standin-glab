@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Stand-in GitLab CLI for the expect-head live drive. It plays the forge: it
+# answers `mr view` from a mutable state directory and enforces --sha the way
+# GitLab does (a merge whose --sha is not the source branch head is rejected).
+set -u
+F=${STANDIN_FORGE:?}
+printf 'GITLAB_HOST=%s %s\n' "${GITLAB_HOST-<unset>}" "$*" >> "$F/glab.log"
+case "${1:-} ${2:-}" in
+  "mr view")
+    head=$(cat "$F/head")
+    jq -cn --arg state "$(cat "$F/state")" --arg head "$head" \
+      --slurpfile pipeline "$F/pipeline.json" \
+      '{iid:7,state:$state,detailed_merge_status:"mergeable",has_conflicts:false,
+        blocking_discussions_resolved:true,sha:$head,head_pipeline:$pipeline[0],
+        merge_when_pipeline_succeeds:false,merge_after:null}'
+    exit 0
+    ;;
+  "mr merge")
+    bound=
+    args=("$@")
+    i=0
+    while [ "$i" -lt "${#args[@]}" ]; do
+      [ "${args[$i]}" = --sha ] && bound=${args[$((i + 1))]:-}
+      i=$((i + 1))
+    done
+    live=$(cat "$F/head")
+    if [ -n "$bound" ] && [ "$bound" != "$live" ]; then
+      echo "409 SHA does not match HEAD of source branch: $live" >&2
+      printf '[forge] REJECTED merge bound to %s: live head is %s\n' "$bound" "$live" >> "$F/events.log"
+      exit 1
+    fi
+    printf 'merged\n' > "$F/state"
+    printf '%s\n' "$live" > "$F/merged-head"
+    printf '[forge] merged at head %s (merge call bound to %s)\n' "$live" "${bound:-<unbound>}" >> "$F/events.log"
+    exit 0
+    ;;
+esac
+echo "standin-glab: unhandled call: $*" >&2
+exit 1

@@ -1,0 +1,31 @@
+Lint evidence: complete bin/fm-lint.sh with pinned actionlint on PATH
+recorded (UTC): 2026-10-12T16:53:23Z
+branch: fm/firstmate-pr-merge-expect-head
+tested HEAD: de020c91f6764686d369950b435b8f9266f60b8d
+base commit: 20dcbf91520b1816663b81873ad67d0b93b3e4d6
+worktree status entries (git status --short): 0
+repository files changed by this lint step: none
+
+tools directory (task-local temporary, prepended to PATH): /tmp/nm-01M4REGC4XC34Y5M6HTCCH8C46-lint-tools.NPzEPc
+installed with: bin/fm-install-actionlint.sh /tmp/nm-01M4REGC4XC34Y5M6HTCCH8C46-lint-tools.NPzEPc (exit 0; installer verified the pinned archive SHA-256)
+actionlint -version:
+  1.7.12
+  installed by downloading from release page
+  built with go1.26.1 compiler for linux/amd64
+actionlint binary sha256: c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4
+shellcheck: /usr/bin/shellcheck version: 0.11.0
+
+$ PATH="/tmp/nm-01M4REGC4XC34Y5M6HTCCH8C46-lint-tools.NPzEPc:$PATH" bin/fm-lint.sh --list-files
+bin/fm-pr-merge.sh
+tests/fm-pr-merge.test.sh
+
+$ PATH="/tmp/nm-01M4REGC4XC34Y5M6HTCCH8C46-lint-tools.NPzEPc:$PATH" bin/fm-lint.sh    # exact combined stdout+stderr
+fm-lint.sh: ShellCheck 0.11.0 (pinned 0.11.0)
+fm-lint.sh: local changed-file mode; ShellCheck source following disabled
+fm-lint-workflows.sh: actionlint 1.7.12 (pinned 1.7.12)
+fm-lint-workflows.sh: 3 workflow files valid
+exit code: 0
+
+$ bin/fm-doc-audience-check.sh    # exact combined stdout+stderr
+fm-doc-audience-check: ok surfaces=118 local_links=743
+exit code: 0

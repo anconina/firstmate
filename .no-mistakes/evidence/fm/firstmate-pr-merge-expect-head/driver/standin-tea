@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stand-in tea: it only records that it was called. The Forgejo scenario must
+# never reach it, so any logged line is itself the failure.
+set -u
+printf '%s\n' "$*" >> "${STANDIN_FORGE:?}/tea.log"
+echo "standin-tea: no forge call is expected in this drive: $*" >&2
+exit 1
