@@ -1,0 +1,832 @@
+Live drive of bin/fm-pr-merge.sh for the stacked-PR merge fix - 2026-10-12T17:18:47Z
+target fb2a5ca2 vs base 20dcbf91 (upstream main). Reproduce with drive-stacked-merge.sh in this directory.
+
+Real:     the scripts under test, a marked disposable lab home (bin/fm-lab-home.sh create),
+          a bare git origin, a worker copy cloned from it, real commits, pushes and fetches.
+Stand-in: the forge itself. gh / glab / tea are local commands that answer from the bare
+          origin's real refs and land the merge in it; no github.com, GitLab or Forgejo
+          server was written to. Part H checks the new forge reads against the real forges.
+Banner lines from bin/fm-guard.sh (the lab home runs no watcher) are filtered out.
+
+SUMMARY (rc = fm-pr-merge.sh exit code, merged = did the forge's main advance)
+ reported flow: register part 1, move on to an unpushed part 2, merge part 1
+  github stacked                                       base 20dcbf91                      rc=1 merged=no
+  github stacked                                       this change                        rc=0 merged=yes
+  gitlab stacked                                       base 20dcbf91                      rc=1 merged=no
+  gitlab stacked                                       this change                        rc=0 merged=yes
+  gitlab stacked, merge request from a fork            this change                        rc=0 merged=yes
+  github stacked, forge head ahead of the copy         this change                        rc=0 merged=yes
+ refusal must still hold (direct-PR)
+  github fix on the PR's own branch, unpushed          this change                        rc=1 merged=no
+  gitlab fix on the PR's own branch, unpushed          this change                        rc=1 merged=no
+  gitlab fork, fix on own branch, unpushed             this change                        rc=1 merged=no
+  github PR branch amended, unpushed                   this change                        rc=1 merged=no
+  github unpushed fix on part 1 + unpushed part 2      this change                        rc=1 merged=no
+  github fix only on another pushed branch             this change                        rc=1 merged=no
+  github fix only on another pushed branch             base 20dcbf91                      rc=0 merged=yes
+  gitlab fix only on another pushed branch             this change                        rc=1 merged=no
+  github PR branch absent from copy, HEAD unpushed     this change                        rc=1 merged=no
+  gitlab fork whose project cannot be read             this change                        rc=1 merged=no
+  github stacked but the check is red                  this change                        rc=1 merged=no
+ no-mistakes mode binds to the verified forge head
+  github later unpushed commit on the PR branch        this change                        rc=0 merged=yes
+  github later unpushed commit on the PR branch        base 20dcbf91                      rc=0 merged=yes
+  gitlab later unpushed commit on the PR branch        this change                        rc=0 merged=yes
+  gitlab later unpushed commit on the PR branch        base 20dcbf91                      rc=1 merged=no
+ Forgejo keeps its registration-time gate (by design)
+  forgejo stacked                                      this change                        rc=1 merged=no
+ secondmate home: what reaches the parent channel
+  refused merge (fix on own branch unpushed)           this change                        rc=1 merged=no
+  register, move on, merge                             this change                        rc=0 merged=yes
+ ordinary registration with bin/fm-pr-check.sh, HEAD unpushed (section I)
+  github / gitlab stacked, github own-branch fix         this change and base               rc=1, nothing recorded or armed
+
+################################################################
+# A. The reported flow: register part 1, move on to an unpushed part 2, merge part 1
+################################################################
+
+================================================================
+SCENARIO  github-stacked   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41      # worker reports part 1 ready; HEAD is the pushed part 1
+    armed: state/stack-a1.check.sh
+    exit code: 0
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 9d3e7f0 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+    error: named head 9d3e7f0692dc05156c79f8edda65025c80ddb245 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-stacked [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41      # worker reports part 1 ready; HEAD is the pushed part 1
+    armed: state/stack-a1.check.sh
+    exit code: 0
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 9d3e7f0 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-stacked   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41      # worker reports part 1 ready; HEAD is the pushed part 1
+    armed: state/stack-a1.check.sh
+    exit code: 0
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 9d3e7f0 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+    error: named head 9d3e7f0692dc05156c79f8edda65025c80ddb245 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-stacked [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  gitlab-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41      # worker reports part 1 ready; HEAD is the pushed part 1
+    armed: state/stack-a1.check.sh
+    exit code: 0
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 9d3e7f0 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 0
+--- merge commands the forge received:
+    glab mr merge 41 -R https://gitlab.example/group/project --sha c39dfbaec774d60dfff704a8b0c6cb1664b10236 --yes
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+(same setups without the earlier registration step)
+
+================================================================
+SCENARIO  github-stacked   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    error: named head a7de77ee7bf3edb39a4d698d4f9a7968474b12ca is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT github-stacked [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-stacked   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    error: named head a7de77ee7bf3edb39a4d698d4f9a7968474b12ca is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT gitlab-stacked [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  gitlab-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 0
+--- merge commands the forge received:
+    glab mr merge 41 -R https://gitlab.example/group/project --sha c39dfbaec774d60dfff704a8b0c6cb1664b10236 --yes
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+
+################################################################
+# B. The refusal still holds when the PR's own branch has unpushed commits
+################################################################
+
+================================================================
+SCENARIO  github-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-own-branch-unpushed   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT github-own-branch-unpushed [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  gitlab-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-own-branch-amended   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * 4de8dfb (HEAD -> fm/stack-part-1) part 1, reworked and never pushed
+    | * c39dfba (origin/fm/stack-part-1) part 1
+    |/  
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head 4de8dfb8e2162ca5d5ef631210fec77363d99db1 could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-own-branch-amended [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * dbe4cb4 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * f60bfd2 (fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-stacked-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-fix-only-on-another-remote-branch   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 4f192b1 (HEAD -> fm/stack-part-2, origin/fm/stack-part-2) part 2
+    * 21f0f72 (fm/stack-part-1) fix on part 1, not pushed to part 1
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head 21f0f728b46fd9461b33a9409d316eca7a0c5c10 could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-fix-only-on-another-remote-branch [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-fix-only-on-another-remote-branch   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 4f192b1 (HEAD -> fm/stack-part-2, origin/fm/stack-part-2) part 2
+    * 21f0f72 (fm/stack-part-1) fix on part 1, not pushed to part 1
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-fix-only-on-another-remote-branch [base (20dcbf91, upstream main)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-fix-only-on-another-remote-branch   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 4f192b1 (HEAD -> fm/stack-part-2, origin/fm/stack-part-2) part 2
+    * 21f0f72 (fm/stack-part-1) fix on part 1, not pushed to part 1
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head 21f0f728b46fd9461b33a9409d316eca7a0c5c10 could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-fix-only-on-another-remote-branch [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-branch-absent-unpushed-head   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head a7de77ee7bf3edb39a4d698d4f9a7968474b12ca is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-branch-absent-unpushed-head [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR   check=FAILURE
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks FAILURE
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    error: refusing to merge https://github.com/example/repo/pull/41
+      - check 'ci' is not green
+    error: these checks are not green: ci
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-stacked [this change (fb2a5ca2)] rc=1 merged=no
+
+
+################################################################
+# C. no-mistakes mode: the merge lands the verified forge head and is bound to it
+################################################################
+
+================================================================
+SCENARIO  github-no-mistakes-unpushed   [scripts from: this change (fb2a5ca2)]   mode=no-mistakes
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-no-mistakes-unpushed [this change (fb2a5ca2)] rc=0 merged=yes
+
+================================================================
+SCENARIO  github-no-mistakes-unpushed   [scripts from: base (20dcbf91, upstream main)]   mode=no-mistakes
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-no-mistakes-unpushed [base (20dcbf91, upstream main)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-no-mistakes-unpushed   [scripts from: this change (fb2a5ca2)]   mode=no-mistakes
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 0
+--- merge commands the forge received:
+    glab mr merge 41 -R https://gitlab.example/group/project --sha c39dfbaec774d60dfff704a8b0c6cb1664b10236 --yes
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-no-mistakes-unpushed [this change (fb2a5ca2)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-no-mistakes-unpushed   [scripts from: base (20dcbf91, upstream main)]   mode=no-mistakes
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT gitlab-no-mistakes-unpushed [base (20dcbf91, upstream main)] rc=1 merged=no
+
+
+################################################################
+# D. GitLab merge request from a fork
+################################################################
+
+================================================================
+SCENARIO  gitlab-fork-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (fork/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 0
+--- merge commands the forge received:
+    glab mr merge 41 -R https://gitlab.example/group/project --sha c39dfbaec774d60dfff704a8b0c6cb1664b10236 --yes
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-fork-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+================================================================
+SCENARIO  gitlab-fork-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (fork/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-fork-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  gitlab-fork-unreadable-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (fork/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    armed: state/stack-a1.check.sh
+    verified: https://gitlab.example/group/project/-/merge_requests/41 is open and mergeable, with a successful pipeline at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: source project 2 could not be read to tell whether local branch fm/stack-part-1 is the merge request's source branch
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://gitlab.example/group/project/-/merge_requests/41
+    merge poll armed: state/stack-a1.check.sh
+RESULT gitlab-fork-unreadable-stacked [this change (fb2a5ca2)] rc=1 merged=no
+
+
+################################################################
+# E. The forge head is ahead of anything the copy has fetched
+################################################################
+
+================================================================
+SCENARIO  github-forge-head-ahead   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at 2e04b9d, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head 2e04b9d37bd2e8a13b8c791254c8e42a44fa4d1c
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit 2e04b9d37bd2e8a13b8c791254c8e42a44fa4d1c --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt review.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=2e04b9d37bd2e8a13b8c791254c8e42a44fa4d1c
+    merge poll armed: state/stack-a1.check.sh
+RESULT github-forge-head-ahead [this change (fb2a5ca2)] rc=0 merged=yes
+
+
+################################################################
+# F. Forgejo keeps its registration-time HEAD gate (documented, by design)
+################################################################
+
+================================================================
+SCENARIO  forgejo-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * a7de77e (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://forgejo.example/fixture/fixture-repo/pulls/41
+    error: named head a7de77ee7bf3edb39a4d698d4f9a7968474b12ca is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT forgejo-stacked [this change (fb2a5ca2)] rc=1 merged=no
+
+
+################################################################
+# G. Secondmate home: a refused merge reports no PR-ready line upward
+################################################################
+
+================================================================
+SCENARIO  github-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR   secondmate home
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * f60bfd2 (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * c39dfba (origin/fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    error: named head f60bfd298b264efc12052f9de76db7c7b5604dbf could not be verified in pull request head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+--- lines that reached the parent channel (state/parent-replies.status):
+    (none)
+RESULT github-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR   secondmate home
+================================================================
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41      # worker reports part 1 ready; HEAD is the pushed part 1
+    armed: state/stack-a1.check.sh
+    exit code: 0
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 9d3e7f0 (HEAD -> fm/stack-part-2) part 2, not pushed
+    * c39dfba (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2a61693 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at c39dfba, checks green
+$ FM_HOME=<lab> bin/fm-pr-merge.sh stack-a1 https://github.com/example/repo/pull/41
+    WARNING: watcher still down (same stale episode; last beat: never, grace 300s) - full banner already printed this episode.
+    armed: state/stack-a1.check.sh
+    verified: https://github.com/example/repo/pull/41 is open and mergeable, with every unwaived required check reported and every unwaived check green at head c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    verified: https://github.com/example/repo/pull/41 is merged (state=MERGED, merged=true, isInMergeQueue=false)
+    exit code: 0
+--- merge commands the forge received:
+    gh pr merge 41 --repo example/repo --match-head-commit c39dfbaec774d60dfff704a8b0c6cb1664b10236 --squash
+--- forge origin main: ADVANCED, files now on main: base.txt part-1.txt 
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    pr=https://github.com/example/repo/pull/41
+    pr_head=c39dfbaec774d60dfff704a8b0c6cb1664b10236
+    merge poll armed: state/stack-a1.check.sh
+--- lines that reached the parent channel (state/parent-replies.status):
+    done [key=child-pr-stack-a1]: child stack-a1 PR ready: https://github.com/example/repo/pull/41 mode=direct-PR
+    done [key=merged-stack-a1]: merged stack-a1 https://github.com/example/repo/pull/41
+RESULT github-stacked [this change (fb2a5ca2)] rc=0 merged=yes
+
+
+################################################################
+# H. The forge reads this change adds, checked read-only against the real forges
+################################################################
+
+$ gh pr view https://github.com/kunchenguid/firstmate/pull/6497 --json headRefName -q .headRefName    # real gh, real github.com
+    fm/fm-merge-stacked-head
+$ curl https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/merge_requests?per_page=1   # the record glab mr view -F json prints
+    {"iid":7629,"sha_is_40hex":true,"source_branch_type":"string","source_project_id_type":"number","target_project_id_type":"number","source_project_id":250833}
+$ curl https://gitlab.com/api/v4/projects/250833   # the record glab api projects/<id> prints
+    {"web_url":"https://gitlab.com/gitlab-org/gitlab-runner","http_url_to_repo":"https://gitlab.com/gitlab-org/gitlab-runner.git","ssh_url_to_repo":"git@gitlab.com:gitlab-org/gitlab-runner.git"}
+
+################################################################
+# I. Ordinary PR-ready registration (bin/fm-pr-check.sh) is unchanged: an unpushed HEAD is still refused
+################################################################
+
+================================================================
+SCENARIO  github-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 928a92c (HEAD -> fm/stack-part-2) part 2, not pushed
+    * 43d52f8 (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2ac96a1 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at 43d52f8, checks green
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41
+    error: named head 928a92c185b4b548bc564c4d857b5fe79ade7a92 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT github-stacked [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-stacked   [scripts from: base (20dcbf91, upstream main)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 928a92c (HEAD -> fm/stack-part-2) part 2, not pushed
+    * 43d52f8 (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2ac96a1 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at 43d52f8, checks green
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41
+    error: named head 928a92c185b4b548bc564c4d857b5fe79ade7a92 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT github-stacked [base (20dcbf91, upstream main)] rc=1 merged=no
+
+================================================================
+SCENARIO  gitlab-stacked   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-2):
+    * 928a92c (HEAD -> fm/stack-part-2) part 2, not pushed
+    * 43d52f8 (origin/fm/stack-part-1, fm/stack-part-1) part 1
+    * 2ac96a1 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at 43d52f8, checks green
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://gitlab.example/group/project/-/merge_requests/41
+    error: named head 928a92c185b4b548bc564c4d857b5fe79ade7a92 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT gitlab-stacked [this change (fb2a5ca2)] rc=1 merged=no
+
+================================================================
+SCENARIO  github-own-branch-unpushed   [scripts from: this change (fb2a5ca2)]   mode=direct-PR
+================================================================
+--- worker copy now (HEAD on fm/stack-part-1):
+    * ddddf1e (HEAD -> fm/stack-part-1) fix on part 1, only in the copy
+    * 43d52f8 (origin/fm/stack-part-1) part 1
+    * 2ac96a1 (origin/main, main) base
+--- forge: PR #41 head branch fm/stack-part-1 is at 43d52f8, checks green
+$ FM_HOME=<lab> bin/fm-pr-check.sh stack-a1 https://github.com/example/repo/pull/41
+    error: named head ddddf1ec3ebba3e8805a073bad8be20e86a4ed87 is unreachable outside the worker copy
+    exit code: 1
+--- merge commands the forge received:
+    (none - no merge was attempted)
+--- forge origin main: UNCHANGED
+--- worker copy branches, remote-tracking refs and HEAD: unchanged by the call
+--- lab task record after the call:
+    merge poll not armed
+RESULT github-own-branch-unpushed [this change (fb2a5ca2)] rc=1 merged=no
+
