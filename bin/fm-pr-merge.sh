@@ -107,6 +107,9 @@
 # mode that verified head is the named head, as bin/fm-dod-lib.sh's
 # fm_dod_forge_head_is_named_head owns: the pipeline pushes from its own
 # checkout and may rebase the branch, so the worker copy's branch can be stale.
+# So on GitHub and GitLab a no-mistakes merge lands that verified head and is
+# bound to it even when the copy's own PR branch has a later commit that was
+# never pushed, while a direct-PR merge is refused for that same commit.
 # A task bin/fm-dod-lib.sh's fm_dod_should_gate_ship_done would not gate is not
 # checked either. Otherwise the forge's head branch, GitHub's headRefName read
 # by URL or GitLab's source_branch from the verified view, must be readable and

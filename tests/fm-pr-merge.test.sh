@@ -825,12 +825,69 @@ test_missing_worktree_merge_follows_the_mode() {
         expect_code 1 "$rc" "missing-worktree-$mode: the merge landed without a provable named head"
         assert_grep 'named head cannot be verified: worktree missing' "$case_dir/stderr" \
           "missing-worktree-$mode: the refusal did not name the missing worktree"
-        assert_no_grep '^pr merge ' "$case_dir/gh.log" \
+        assert_no_grep 'pr merge ' "$case_dir/gh.log" \
           "missing-worktree-$mode: a merge was attempted despite the refusal"
         ;;
     esac
   done
   pass "fm-pr-merge merges a no-mistakes PR whose worktree is gone and refuses a direct-PR one"
+}
+
+# The PR branch's pushed head is green on the forge, and the copy then gains a
+# fix on that same branch that was never pushed. A no-mistakes merge on GitHub
+# or GitLab still lands the verified head and is bound to it, since that head is
+# its named head, while a direct-PR merge refuses for the unpushed fix.
+test_unpushed_pr_branch_commit_follows_the_mode() {
+  local case_dir forge mode rc url verified fix merge_line bound_line
+  for forge in github gitlab; do
+    for mode in no-mistakes direct-PR; do
+      case_dir=$(make_gitlab_case "unpushed-fix-$forge-$mode")
+      printf 'mode=%s\n' "$mode" >> "$case_dir/state/task-x1.meta"
+      git -C "$case_dir/wt" checkout -q -b fm/task-x1
+      git -C "$case_dir/wt" commit -q --allow-empty -m 'the pushed head'
+      verified=$(git -C "$case_dir/wt" rev-parse HEAD)
+      git -C "$case_dir/wt" update-ref refs/remotes/origin/fm/task-x1 "$verified"
+      git -C "$case_dir/wt" commit -q --allow-empty -m 'fix, only in the copy'
+      fix=$(git -C "$case_dir/wt" rev-parse HEAD)
+      case "$forge" in
+        github)
+          url=https://github.com/example/repo/pull/64
+          write_github_live_json "$case_dir" "$verified"
+          bound_line="pr merge 64 --repo example/repo --match-head-commit $verified --squash"
+          ;;
+        gitlab)
+          url=$MR_URL
+          write_mr_json "$case_dir/mr.json" "head=$verified" "pipeline_sha=$verified"
+          bound_line="GITLAB_HOST=$MR_HOST mr merge 7 -R $MR_PROJECT_URL --sha $verified --yes"
+          ;;
+      esac
+
+      set +e
+      run_pr_merge "$case_dir" task-x1 "$url" \
+        > "$case_dir/stdout" 2> "$case_dir/stderr"
+      rc=$?
+      set -e
+
+      case "$forge" in
+        github) merge_line=$(grep '^pr merge ' "$case_dir/gh.log" || true) ;;
+        gitlab) merge_line=$(glab_merge_line "$case_dir/glab.log") ;;
+      esac
+      case "$mode" in
+        no-mistakes)
+          expect_code 0 "$rc" "unpushed-fix-$forge-$mode: the verified head was refused for the copy's unpushed fix"
+          [ "$merge_line" = "$bound_line" ] \
+            || fail "unpushed-fix-$forge-$mode: the merge was not bound to the verified head: '$merge_line'"
+          ;;
+        direct-PR)
+          expect_code 1 "$rc" "unpushed-fix-$forge-$mode: the merge landed without the PR branch's unpushed fix"
+          assert_grep "named head $fix could not be verified in pull request head $verified" "$case_dir/stderr" \
+            "unpushed-fix-$forge-$mode: the refusal did not name the unpushed fix"
+          [ -z "$merge_line" ] || fail "unpushed-fix-$forge-$mode: a merge was attempted despite the refusal"
+          ;;
+      esac
+    done
+  done
+  pass "fm-pr-merge binds a no-mistakes merge to the verified head despite an unpushed fix on the PR branch, and refuses a direct-PR one"
 }
 
 test_github_merged_outcome_is_verified() {
@@ -3148,6 +3205,7 @@ test_verified_merge_records_pr_and_head
 test_pr_metadata_is_recorded_before_the_forge_call
 test_merge_failure_propagates_after_recording
 test_missing_worktree_merge_follows_the_mode
+test_unpushed_pr_branch_commit_follows_the_mode
 test_github_open_unqueued_outcome_refuses
 test_github_mergeable_unknown_retries_then_succeeds
 test_github_mergeable_unknown_exhausts_bound_and_reports_pending
