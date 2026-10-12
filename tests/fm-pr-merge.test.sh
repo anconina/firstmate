@@ -4593,6 +4593,28 @@ test_allow_missing_refused_on_forgejo() {
   pass "fm-pr-merge refuses --allow-missing on Forgejo"
 }
 
+test_expect_head_refused_on_forgejo() {
+  local case_dir rc expected=dddddddddddddddddddddddddddddddddddddddd
+  # The live head is $FJ_HEAD, green and mergeable: a moved head the caller never verified.
+  case_dir=$(make_forgejo_case forgejo-expect-head)
+  set +e
+  run_pr_merge "$case_dir" task-x1 "$FJ_URL" --expect-head "$expected" \
+    > "$case_dir/stdout" 2> "$case_dir/stderr"
+  rc=$?
+  set -e
+  expect_code 2 "$rc" "forgejo-expect-head: --expect-head must be refused on Forgejo"
+  assert_grep '--expect-head is not supported on Forgejo' "$case_dir/stderr" \
+    "forgejo-expect-head: refusal did not name Forgejo"
+  [ -z "$(tea_merge_line "$case_dir/tea.log")" ] \
+    || fail "forgejo-expect-head: a merge call was posted despite --expect-head"
+  [ ! -s "$case_dir/tea.log" ] || fail "forgejo-expect-head: tea ran despite --expect-head"
+  assert_no_grep 'pr=' "$case_dir/state/task-x1.meta" \
+    "forgejo-expect-head: the PR was recorded before refusing"
+  assert_absent "$case_dir/state/.control-task-x1.lock" \
+    "forgejo-expect-head: the per-task control lock was left behind"
+  pass "fm-pr-merge refuses --expect-head on Forgejo before any forge call"
+}
+
 test_gitlab_head_override_args_refuse_before_recording
 test_secondmate_merge_reports_upward_once
 test_secondmate_merge_reports_on_the_local_route
@@ -4649,3 +4671,4 @@ test_app_bound_required_status_context_matches_by_name
 test_required_partial_reads_report_all_failures
 test_allow_red_refused_on_forgejo
 test_allow_missing_refused_on_forgejo
+test_expect_head_refused_on_forgejo

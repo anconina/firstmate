@@ -133,7 +133,10 @@
 # <sha> once, with <sha> a separate argument in the full commit SHA form
 # fm_pr_head_valid accepts for a live head. On GitHub and GitLab,
 # refuse_unexpected_head below refuses before any forge merge call when the
-# live head differs, and a matching head is the one the merge binds to.
+# live head differs, and a matching head is the one the merge binds to. On
+# Forgejo the option itself is refused, before any state is recorded or forge
+# call is made, because that path checks no expected head and would otherwise
+# accept the flag and drop it.
 #
 # Before either forge merge, the task's existing per-task control lock
 # serializes the captain-hold check through the forge command. A still-held or
@@ -175,6 +178,7 @@
 # away-record read, or a captain hold.
 #
 # Usage: fm-pr-merge.sh <task-id> <pr-url> [--attended-override] [--allow-red <check-name>] [--allow-missing <check-name>] [--expect-head <sha>] [-- <extra forge merge args>]
+#   --expect-head is supported on GitHub and GitLab and refused on Forgejo.
 #
 # On GitLab, this script confirms the MR is actually merged before reporting it;
 # an auto-merge-queued or unconfirmed request leaves the poll armed and records
@@ -312,6 +316,10 @@ if [ "${#ALLOW_MISSING[@]}" -gt 0 ]; then
       exit 2
       ;;
   esac
+fi
+if [ -n "$EXPECT_HEAD" ] && [ "$PROVIDER" = forgejo ]; then
+  echo "error: --expect-head is not supported on Forgejo, where a merge binds only to the head it reads live; it is supported on GitHub and GitLab" >&2
+  exit 2
 fi
 
 caller_has_merge_method() {
