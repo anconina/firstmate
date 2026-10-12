@@ -2983,8 +2983,8 @@ test_failed_merge_reports_nothing() {
   set -e
 
   expect_code 1 "$rc" "failed-merge-silent: a failed merge should propagate"
-  # The registration's ready line is a fact of its own; only a merge line
-  # would misreport the unlanded merge.
+  # The merge-time re-record sends no ready line, and a merge line would
+  # misreport the unlanded merge.
   assert_no_grep 'merged-task-x1' "$case_dir/state/parent-replies.status" \
     "failed-merge-silent: a merge that never landed was reported as landed"
   pass "a refused or failed merge reports no outcome"
